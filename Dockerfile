@@ -29,11 +29,4 @@ ENV PYTHONUNBUFFERED=1 \
 # - GCP_CREDENTIALS_JSON: For Google Sheets functionality (if needed)
 
 # Run remote browser with HTTP-based architecture
-CMD ["sh", "-c", "\
-    # Start environment server in background \
-    uvicorn environment.server:app --host 0.0.0.0 --port 8000 >&2 & \
-    # Wait a bit for environment server to start \
-    sleep 2 && \
-    # Run MCP server in foreground with exec \
-    exec python3 -m server.main \
-"]
+CMD ["sh", "-c", "uvicorn environment.server:app --host 0.0.0.0 --port $ENV_SERVER_PORT --log-level warning --reload >&2 & sleep 0.5 && cd /app/server && exec hud dev server.main --stdio"]
