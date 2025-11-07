@@ -21,9 +21,8 @@ async def navigate_to_url(ctx: Context, url: str, wait_for_load_state: str = "ne
     """
     logger.info(f"Navigating to URL: {url}")
 
-    # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # Get the playwright tool from the hub (stored directly on setup hub)
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No playwright tool available")
         return TextContent(text="No browser available for navigation", type="text")

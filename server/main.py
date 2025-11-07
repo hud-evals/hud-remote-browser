@@ -1,4 +1,7 @@
-"""MCP server for remote browser environment."""
+"""MCP server for remote browser environment.
+
+This version uses HTTP to communicate with the environment server.
+"""
 
 import sys
 import logging
@@ -6,6 +9,8 @@ import os
 import asyncio
 from datetime import datetime
 from typing import Optional, TypedDict, Any
+
+import httpx
 
 # Configure stderr logging
 logging.basicConfig(
@@ -17,7 +22,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from hud.server import MCPServer
-from hud.server.context import attach_context
 
 # Import tools
 from .tools import PlaywrightToolWithMemory, BrowserExecutor
@@ -31,13 +35,16 @@ from hud.tools.computer import (
 from .setup import setup as setup_hub
 from .evaluate import evaluate as evaluate_hub
 
-# Import providers
-from .providers import get_provider, BrowserProvider
+# Import providers (for initialization)
+from .providers import get_provider
 
-# Global persistent context (initialized during startup)
-persistent_ctx = None
+# Global HTTP client for communicating with environment server
+http_client: Optional[httpx.AsyncClient] = None
 playwright_tool: Optional[PlaywrightToolWithMemory] = None
 browser_executor: Optional[BrowserExecutor] = None
+
+# Environment server URL
+ENV_SERVER_URL = os.getenv("ENV_SERVER_URL", "http://localhost:8000")
 
 # Create Hud FastMCP instance
 mcp = MCPServer(
@@ -45,7 +52,7 @@ mcp = MCPServer(
     instructions="""
     This is a remote browser automation environment that connects to cloud browser providers.
     The browser provider is configured via the BROWSER_PROVIDER environment variable.
-    
+
     Available tools:
     - setup: Initialize browser environment with various setup functions
     - evaluate: Evaluate browser state with various evaluator functions
@@ -69,22 +76,23 @@ class Telemetry(TypedDict):
 @mcp.resource("telemetry://live")
 async def get_telemetry_resource() -> Telemetry:
     """MCP resource containing telemetry data including provider's live view URL."""
-    global persistent_ctx
+    global http_client
 
-    if persistent_ctx:
+    if http_client:
         try:
-            telemetry = persistent_ctx.get_telemetry()  # Now synchronous
+            response = await http_client.get("/telemetry")
+            response.raise_for_status()
+            telemetry = response.json()
             return Telemetry(
                 provider=telemetry["provider"],
                 status=telemetry["status"],
                 live_url=telemetry["live_url"],
                 timestamp=datetime.now().isoformat(),
-                cdp_url=None,
-                instance_id=telemetry["instance_id"],
+                cdp_url=telemetry.get("cdp_url"),
+                instance_id=telemetry.get("instance_id"),
             )
         except Exception as e:
             logger.error(f"Error getting telemetry data: {e}")
-            # Return default telemetry on error instead of None
             return Telemetry(
                 provider=os.getenv("BROWSER_PROVIDER", "unknown"),
                 status="error",
@@ -107,7 +115,7 @@ async def get_telemetry_resource() -> Telemetry:
 @mcp.initialize
 async def initialize_environment(ctx):
     """Initialize the remote browser environment with progress reporting."""
-    global persistent_ctx, playwright_tool, browser_executor
+    global http_client, playwright_tool, browser_executor
 
     # Extract progress token from context if available
     progress_token = None
@@ -128,51 +136,41 @@ async def initialize_environment(ctx):
         logger.info(f"[{progress}%] {message}")
 
     try:
-        await send_progress(5, "Connecting to persistent context...")
+        await send_progress(5, "Connecting to environment server...")
 
-        # Connect to persistent context server
+        # Connect to environment server via HTTP
+        http_client = httpx.AsyncClient(base_url=ENV_SERVER_URL, timeout=30.0)
+
+        # Wait for environment server to be ready
         max_retries = 10
         retry_delay = 1.0
 
         for attempt in range(max_retries):
             try:
-                persistent_ctx = attach_context("/tmp/hud_remote_browser_ctx.sock")
-                if persistent_ctx is None:
-                    raise ConnectionError("Failed to attach to context server")
-                logger.info("Connected to persistent remote browser context")
-
-                # Log current state
-                state = persistent_ctx.get_state_summary()
-                logger.info(f"Context state: {state}")
-
-                if persistent_ctx.get_is_initialized():
-                    logger.info("Resuming with existing browser session")
-                else:
-                    logger.info("Starting fresh browser session")
+                response = await http_client.get("/health")
+                response.raise_for_status()
+                logger.info("Connected to environment server")
                 break
-
             except Exception as e:
                 if attempt < max_retries - 1:
                     logger.warning(
-                        f"Context server not ready yet (attempt {attempt + 1}/{max_retries}): {e}"
+                        f"Environment server not ready yet (attempt {attempt + 1}/{max_retries}): {e}"
                     )
                     await asyncio.sleep(retry_delay)
                 else:
                     logger.error(
-                        f"Failed to connect to context server after {max_retries} attempts: {e}"
-                    )
-                    logger.error(
-                        "The context server should be started automatically. Check container logs."
+                        f"Failed to connect to environment server after {max_retries} attempts: {e}"
                     )
                     raise
 
-        await send_progress(10, "Connected to persistent context")
+        await send_progress(10, "Connected to environment server")
 
-        # At this point, persistent_ctx is guaranteed to be set
-        assert persistent_ctx is not None
+        # Check if environment is already initialized
+        response = await http_client.get("/state")
+        response.raise_for_status()
+        state = response.json()
 
-        # Check if we need to initialize a new browser session
-        if not persistent_ctx.get_is_initialized():
+        if not state["is_initialized"]:
             await send_progress(15, "Initializing new browser session...")
 
             # Get provider configuration from environment
@@ -188,11 +186,9 @@ async def initialize_environment(ctx):
             provider_name = provider_name.lower()
             await send_progress(20, f"Using browser provider: {provider_name}")
 
-            # Initialize the browser provider
-            provider_class = get_provider(provider_name)
+            # Build provider config
             provider_config = {}
 
-            # Add provider-specific configuration
             if provider_name == "anchorbrowser":
                 provider_config["api_key"] = os.getenv("ANCHOR_API_KEY")
                 provider_config["base_url"] = os.getenv(
@@ -209,20 +205,8 @@ async def initialize_environment(ctx):
             elif provider_name == "kernel":
                 provider_config["api_key"] = os.getenv("KERNEL_API_KEY")
 
-            # Store provider config in context
-            persistent_ctx.set_provider_config(provider_config)
-
-            browser_provider = provider_class(provider_config)
-            persistent_ctx.set_browser_provider(browser_provider)
-            await send_progress(30, "Browser provider initialized")
-
-            # Launch the browser and get CDP URL
-            await send_progress(40, "Launching remote browser...")
-
             # Build launch options
             launch_options = {}
-
-            # Add other launch options from environment
             max_duration = os.getenv("BROWSER_MAX_DURATION")
             if max_duration:
                 launch_options["max_duration"] = int(max_duration)
@@ -230,41 +214,33 @@ async def initialize_environment(ctx):
             if idle_timeout:
                 launch_options["idle_timeout"] = int(idle_timeout)
 
-            # Store launch options in context
-            persistent_ctx.set_launch_options(launch_options)
+            # Initialize browser via HTTP
+            await send_progress(40, "Launching remote browser...")
+            init_response = await http_client.post(
+                "/initialize",
+                json={
+                    "provider_name": provider_name,
+                    "provider_config": provider_config,
+                    "launch_options": launch_options,
+                },
+            )
+            init_response.raise_for_status()
+            init_data = init_response.json()
+            cdp_url = init_data["cdp_url"]
 
-            # Create browser session
-            cdp_url = await browser_provider.launch(**launch_options)
-
-            # Build and store telemetry data
-            telemetry_data = {
-                "provider": provider_name,
-                "status": "running",
-                "live_url": browser_provider.get_live_view_url()
-                if hasattr(browser_provider, "get_live_view_url")
-                else None,
-                "cdp_url": cdp_url,
-                "instance_id": browser_provider._instance_id
-                if hasattr(browser_provider, "_instance_id")
-                else None,
-                "timestamp": datetime.now().isoformat(),
-            }
-            persistent_ctx.set_telemetry(telemetry_data)
-
-            await send_progress(60, f"Browser launched")
+            await send_progress(60, "Browser launched")
         else:
             # Reuse existing browser session
             await send_progress(20, "Reusing existing browser session...")
 
-            # Get existing CDP URL from context
-            cdp_url = persistent_ctx.get_cdp_url()
-            if not cdp_url:
-                raise ValueError("No CDP URL in persistent context")
+            # Get existing CDP URL from environment
+            response = await http_client.get("/cdp_url")
+            response.raise_for_status()
+            cdp_url = response.json()["cdp_url"]
 
-            await send_progress(60, f"Using existing CDP URL")
+            await send_progress(60, "Using existing CDP URL")
 
-        # Initialize PlaywrightToolWithMemory with CDP URL from context
-        # This reconnects to the existing browser session on reloads
+        # Initialize PlaywrightToolWithMemory with CDP URL
         playwright_tool = PlaywrightToolWithMemory(context=None, cdp_url=cdp_url)
 
         # Ensure browser is connected before registering tools
@@ -279,20 +255,20 @@ async def initialize_environment(ctx):
         browser_executor = BrowserExecutor(playwright_tool)
         await send_progress(75, "Browser executor initialized")
 
-        # Create and register computer tools with default dimensions
+        # Create and register computer tools
         mcp.add_tool(HudComputerTool(executor=browser_executor))
         mcp.add_tool(AnthropicComputerTool(executor=browser_executor))
         mcp.add_tool(OpenAIComputerTool(executor=browser_executor))
 
         await send_progress(80, "Registered hud computer tools")
 
-        # Set the persistent context as environment for setup and evaluate hubs
-        setup_hub.env = persistent_ctx
-        evaluate_hub.env = persistent_ctx
+        # Set the HTTP client as environment for setup and evaluate hubs
+        setup_hub.env = http_client
+        evaluate_hub.env = http_client
 
-        # Also store the current playwright tool on the persistent context
-        # Note: This is NOT pickled/persisted, it's just for current session access
-        persistent_ctx.playwright_tool = playwright_tool
+        # Also store playwright tool for direct access (for setup/evaluate)
+        setup_hub.playwright_tool = playwright_tool
+        evaluate_hub.playwright_tool = playwright_tool
 
         # Mount the hubs
         mcp.mount(setup_hub)
@@ -300,14 +276,11 @@ async def initialize_environment(ctx):
         await send_progress(90, "Setup and evaluate tools registered")
 
         # Navigate to initial URL if specified (only for new sessions)
-        if not persistent_ctx.get_is_initialized():
+        if not state["is_initialized"]:
             initial_url = os.getenv("BROWSER_URL")
             if initial_url:
                 await send_progress(95, f"Navigating to {initial_url}")
                 await playwright_tool.navigate(initial_url)
-
-            # Mark as initialized
-            persistent_ctx.set_initialized(True)
 
         await send_progress(100, "Remote browser environment ready!")
 
@@ -322,20 +295,21 @@ async def initialize_environment(ctx):
 @mcp.shutdown
 async def shutdown_environment():
     """Shutdown the remote browser environment (only called on SIGTERM)."""
-    global persistent_ctx, playwright_tool, browser_executor
+    global http_client, playwright_tool, browser_executor
 
-    logger.info("🔧 SIGTERM received - shutting down browser provider")
+    logger.info("🔧 SIGTERM received - shutting down browser environment")
     try:
-        # Close the browser provider
-        if persistent_ctx:
-            logger.info("Closing browser provider...")
+        # Close the browser provider via HTTP
+        if http_client:
+            logger.info("Requesting browser shutdown...")
             try:
-                provider = persistent_ctx.get_browser_provider()
-                if provider and hasattr(provider, "close"):
-                    provider.close()
-                    logger.info("Browser provider closed")
+                response = await http_client.post("/shutdown")
+                response.raise_for_status()
+                logger.info("Browser provider closed")
             except Exception as e:
                 logger.error(f"Error closing provider: {e}")
+            finally:
+                await http_client.aclose()
 
         logger.info("✅ Browser shutdown completed")
     except Exception as e:
@@ -344,6 +318,7 @@ async def shutdown_environment():
         # Clear local references
         playwright_tool = None
         browser_executor = None
+        http_client = None
 
 
 if __name__ == "__main__":
