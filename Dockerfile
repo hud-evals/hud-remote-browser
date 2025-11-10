@@ -30,5 +30,12 @@ ENV ENV_SERVER_PORT=8000 \
 # - Provider-specific API keys: ANCHOR_API_KEY, STEEL_API_KEY, etc.
 # - GCP_CREDENTIALS_JSON: For Google Sheets functionality (if needed)
 
-# Run remote browser with HTTP-based architecture
-CMD ["sh", "-c", "uvicorn environment.server:app --host 0.0.0.0 --port $ENV_SERVER_PORT --log-level warning --reload >&2 & sleep 0.5 && cd /app/server && exec hud dev server.main --stdio"]
+CMD ["sh", "-c", "\
+    if [ \"${HUD_DEV:-0}\" = \"1\" ]; then \
+      uvicorn environment.server:app --host 0.0.0.0 --port $ENV_SERVER_PORT --reload --log-level warning >&2 & \
+      sleep 5 && cd /app/server && exec hud dev server.main --stdio; \
+    else \
+      uvicorn environment.server:app --host 0.0.0.0 --port $ENV_SERVER_PORT --log-level warning >&2 & \
+      sleep 5 && cd /app/server && exec python3 -m server.main; \
+    fi\
+"]
