@@ -1,5 +1,5 @@
 # Use our HUD base browser image with Playwright and uv pre-installed
-FROM  hudevals/hud-browser-base:latest
+FROM  hudevals/hud-browser-base
 
 # Create app-specific working directory
 WORKDIR /app
