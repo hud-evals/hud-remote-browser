@@ -1,106 +1,31 @@
-# HUD Remote Browser MCP Server
+# HUD Remote Browser
 
 This MCP server provides browser automation capabilities using various remote browser providers.
 
-## Running with Docker
-
-The Docker image supports both production and development modes using the same Dockerfile.
-
-### Building the Image
+## Quick Start
 
 ```bash
-# Production build (default)
-docker build -t hud-remote-browser:latest .
+# Build the Docker image
+# Add provider-specific environment variables here
+hud build . -e BROWSER_PROVIDER=
+
+# Start hot-reload development server
+# Make sure that you have a .env file with the required environment variables
+hud dev
+
+# Run the sample tasks
+hud eval test_task.json
 ```
 
-### Running in Production Mode
+## Deploy
 
-```bash
-# Using AnchorBrowser
-docker run --rm -i \
-  -e BROWSER_PROVIDER=anchorbrowser \
-  -e ANCHOR_API_KEY=your-api-key \
-  hud-remote-browser:latest
+When you're ready to use this environment in production:
 
-# Using BrowserBase
-docker run --rm -i \
-  -e BROWSER_PROVIDER=browserbase \
-  -e BROWSERBASE_API_KEY=your-api-key \
-  -e BROWSERBASE_PROJECT_ID=your-project-id \
-  hud-remote-browser:latest
-```
+1. Push your code to GitHub
+2. Connect your repo at [hud.ai](https://hud.ai/environments/new)
+3. Builds will trigger automatically on each push
 
-### Running in Development Mode (Hot Reload)
-
-Development mode allows you to edit code locally and see changes immediately without rebuilding.
-
-#### Option 1: Using `hud dev` (Recommended)
-
-The easiest way to develop with hot-reload:
-
-```bash
-# Set required environment variables
-export BROWSER_PROVIDER=anchorbrowser
-export ANCHOR_API_KEY=your-api-key
-
-# Start development proxy
-hud dev . --build
-
-# This will:
-# - Build/use hud-remote-browser:dev image
-# - Mount ./src for hot-reload
-# - Provide HTTP endpoint for Cursor
-# - Auto-restart on file changes
-# - Pass through environment variables
-# - **Keep browser sessions alive across restarts**
-```
-
-Add the URL from output to Cursor or click the deeplink.
-
-**Note**: With hot-reload enabled, your browser session persists across code changes. This means you can modify your code and the server will restart automatically without losing your browser state, tabs, or navigation history.
-
-#### Option 2: Manual Docker Run
-
-For direct control over the development environment:
-
-```bash
-# Windows
-docker run --rm -i ^
-  -v "%cd%\src:/app/src:rw" ^
-  -e BROWSER_PROVIDER=anchorbrowser ^
-  -e ANCHOR_API_KEY=your-api-key ^
-  -e PYTHONPATH=/app ^
-  hud-remote-browser:dev
-
-# Linux/Mac
-docker run --rm -i \
-  -v "$(pwd)/src:/app/src:rw" \
-  -e BROWSER_PROVIDER=anchorbrowser \
-  -e ANCHOR_API_KEY=your-api-key \
-  -e PYTHONPATH=/app/src \
-  hud-remote-browser:dev
-```
-
-The `-v` flag mounts your local `src/` directory into the container, allowing instant code changes.
-
-## Supported Browser Providers
-
-- **anchorbrowser** - Requires `ANCHOR_API_KEY`
-- **browserbase** - Requires `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`
-- **hyperbrowser** - Requires `HYPERBROWSER_API_KEY`
-- **steel** - Requires `STEEL_API_KEY`
-- **kernel** - No additional requirements
-
-## Environment Variables
-
-### Core Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `BROWSER_PROVIDER` | **Yes** | The browser provider to use |
-| `LOG_LEVEL` | No | Logging level (default: INFO) |
-
-### Provider-Specific Variables
+## Browser Providers
 
 | Provider | Required Variables |
 |----------|-------------------|
@@ -108,6 +33,7 @@ The `-v` flag mounts your local `src/` directory into the container, allowing in
 | browserbase | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` |
 | hyperbrowser | `HYPERBROWSER_API_KEY` |
 | steel | `STEEL_API_KEY` |
+| kernel | None |
 
 ### Optional Browser Settings
 
@@ -185,41 +111,6 @@ base64 < service-account.json
 -e GCP_CLIENT_X509_CERT_URL='https://www.googleapis.com/robot/v1/metadata/x509/...'
 ```
 
-## MCP Resources
+## Learn More
 
-The server provides several MCP resources:
-
-### telemetry://live
-Returns real-time telemetry data including the provider's live view URL (if available):
-```json
-{
-  "provider": "anchorbrowser",
-  "status": "running",
-  "live_url": "https://browser.anchorbrowser.io/sessions/abc123",
-  "cdp_url": "wss://browser.anchorbrowser.io/devtools/...",
-  "instance_id": "session_abc123",
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
-```
-
-### setup://registry
-Returns all available setup functions for browser initialization.
-
-### evaluators://registry
-Returns all available evaluator functions for browser state validation.
-
-## MCP Protocol
-
-The server communicates via stdio using the MCP protocol. Example initialization:
-
-```bash
-echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {...}}' | \
-  docker run --rm -i -e BROWSER_PROVIDER=steel -e STEEL_API_KEY=... hud-remote-browser:latest
-```
-
-## Error Handling
-
-If `BROWSER_PROVIDER` is not set, the server will fail with:
-```
-BROWSER_PROVIDER environment variable is required. Supported providers: anchorbrowser, steel, browserbase, hyperbrowser, kernel
-```
+For complete documentation on building environments and running evaluations, visit [docs.hud.ai](https://docs.hud.ai).
