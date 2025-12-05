@@ -21,7 +21,7 @@ ENV ENV_SERVER_PORT=8000 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     ENV_SERVER_URL=http://localhost:8000 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
     PATH=/app/.venv/bin:$PATH
 
 # Note: Environment variables for browser providers should be set at runtime:
