@@ -1,5 +1,5 @@
 # Use our HUD base browser image with Playwright and uv pre-installed
-FROM hudpython/base-browser:latest
+FROM  hudevals/hud-browser-base
 
 # Create app-specific working directory
 WORKDIR /app
@@ -9,9 +9,7 @@ COPY pyproject.toml ./
 COPY environment/ ./environment/
 COPY server/ ./server/
 
-# Install the package using the existing venv at /opt/venv
-# The --python flag tells uv to use this specific Python instead of creating a new venv
-RUN uv pip install --python /opt/venv -e .
+RUN uv sync
 
 # Create directories for logs and data
 RUN mkdir -p /app/logs /app/data
@@ -24,6 +22,7 @@ ENV ENV_SERVER_PORT=8000 \
     PYTHONDONTWRITEBYTECODE=1 \
     ENV_SERVER_URL=http://localhost:8000 \
     PYTHONPATH=/app
+    PATH=/app/.venv/bin:$PATH
 
 # Note: Environment variables for browser providers should be set at runtime:
 # - BROWSER_PROVIDER: anchorbrowser, steel, browserbase, hyperbrowser, kernel
