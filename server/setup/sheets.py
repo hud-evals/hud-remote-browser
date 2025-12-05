@@ -231,8 +231,8 @@ async def sheets_from_xlsx(
         logger.info("Set sharing permissions")
 
         # Navigate to the sheet
-        persistent_ctx = setup.env
-        playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+        # http_client = setup.env  # Not needed in new architecture
+        playwright_tool = getattr(setup, "playwright_tool", None)
         if playwright_tool and hasattr(playwright_tool, "page") and playwright_tool.page:
             page = playwright_tool.page
             logger.info(f"Navigating to sheet: {sheet_url}")
@@ -323,8 +323,8 @@ async def sheets_from_bytes(
         logger.info("Set sharing permissions")
 
         # Navigate to the sheet
-        persistent_ctx = setup.env
-        playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+        # http_client = setup.env  # Not needed in new architecture
+        playwright_tool = getattr(setup, "playwright_tool", None)
         if playwright_tool and hasattr(playwright_tool, "page") and playwright_tool.page:
             page = playwright_tool.page
             logger.info(f"Navigating to sheet: {sheet_url}")

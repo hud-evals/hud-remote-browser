@@ -22,8 +22,8 @@ async def set_cookies(ctx: Context, cookies: List[Dict[str, Any]]):
     logger.info(f"Setting {len(cookies)} cookies")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")
@@ -52,8 +52,8 @@ async def clear_cookies(ctx: Context):
     logger.info("Clearing all cookies")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")

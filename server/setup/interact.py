@@ -22,8 +22,8 @@ async def click_element(ctx: Context, selector: str, timeout: int = 30000):
     logger.info(f"Clicking element with selector: {selector}")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")
@@ -55,8 +55,8 @@ async def fill_input(ctx: Context, selector: str, text: str, timeout: int = 3000
     logger.info(f"Filling input {selector} with text")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")
@@ -88,8 +88,8 @@ async def select_option(ctx: Context, selector: str, value: str, timeout: int = 
     logger.info(f"Selecting option {value} in {selector}")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")

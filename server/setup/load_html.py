@@ -21,8 +21,8 @@ async def load_html_content(ctx: Context, html: str):
     logger.info("Loading custom HTML content into browser")
 
     # Get the playwright tool from the environment context
-    persistent_ctx = setup.env
-    playwright_tool = getattr(persistent_ctx, "playwright_tool", None)
+    # http_client = setup.env  # Not needed in new architecture
+    playwright_tool = getattr(setup, "playwright_tool", None)
     if not playwright_tool or not hasattr(playwright_tool, "page") or not playwright_tool.page:
         logger.error("No browser page available")
         return TextContent(text="No browser page available", type="text")

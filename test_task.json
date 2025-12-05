@@ -1,4 +1,4 @@
-{
+[{
     "prompt": "Calculate from the RawData tab the z-scores from the mean close price for each row. Return, starting in ANSWER!A1 and descending to ANSWER!A5, the 5 dates with the greatest absolute value of standard deviations from the mean",
     "mcp_config": {
         "test_browser": {
@@ -31,4 +31,4 @@
         }
     },
     "system_prompt": "All solutions should be put in the sheet called \"ANSWER\". In the answer sheet, all dates should use the American standard format MM/DD/YYYY with no leading zero. All numbers should use the format and decimal place precision given in the input sheets (e.g., with or without a thousands separator should depend on the inputs), unless specified otherwise."
-}
+}]
