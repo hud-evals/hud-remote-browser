@@ -1,0 +1,60 @@
+[
+  {
+    "env": {"name": "hud-remote-browser"},
+    "scenario": "answer",
+    "args": {
+      "url": "https://en.wikipedia.org/wiki/Python_(programming_language)",
+      "prompt": "What year was Python first released? Return just the year as a number.",
+      "expected": "1991",
+      "compare_mode": "contains"
+    }
+  },
+  {
+    "env": {"name": "hud-remote-browser"},
+    "scenario": "answer",
+    "args": {
+      "url": "https://httpbin.org/json",
+      "prompt": "Extract the 'title' field from the slideshow object. Return just the title text.",
+      "expected": "Sample Slideshow",
+      "compare_mode": "exact"
+    }
+  },
+  {
+    "env": {"name": "hud-remote-browser"},
+    "scenario": "fill-record",
+    "args": {
+      "url": "https://httpbin.org/forms/post",
+      "prompt": "Fill out the order form with the customer information provided.",
+      "fields": {
+        "Customer name": "Jane Smith",
+        "Telephone": "555-9876",
+        "Email": "jane@example.com",
+        "Size": "Medium",
+        "Topping": "Bacon"
+      },
+      "verify": {
+        "input[name='custname']": "Jane Smith",
+        "input[name='custtel']": "555-9876",
+        "input[name='custemail']": "jane@example.com"
+      }
+    }
+  },
+  {
+    "env": {"name": "hud-remote-browser"},
+    "scenario": "wiki-speedrun",
+    "args": {
+      "start_page": "Cat",
+      "target_page": "Ancient_Egypt",
+      "max_clicks": 6
+    }
+  },
+  {
+    "env": {"name": "hud-remote-browser"},
+    "scenario": "wiki-speedrun",
+    "args": {
+      "start_page": "Python_(programming_language)",
+      "target_page": "Guido_van_Rossum",
+      "max_clicks": 3
+    }
+  }
+]

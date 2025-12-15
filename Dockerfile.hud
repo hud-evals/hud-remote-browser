@@ -1,0 +1,40 @@
+# Use our HUD base browser image with Playwright and uv pre-installed
+FROM hudevals/hud-browser-base
+
+WORKDIR /app
+
+# Copy project files
+COPY pyproject.toml ./
+COPY env.py ./
+COPY context.py ./
+COPY tools/ ./tools/
+COPY providers/ ./providers/
+COPY setup/ ./setup/
+COPY evaluate/ ./evaluate/
+COPY scenarios/ ./scenarios/
+
+RUN uv sync
+
+# Create directories for logs and data
+RUN mkdir -p /app/logs /app/data
+
+ENV DISPLAY_WIDTH=1448
+ENV DISPLAY_HEIGHT=944
+
+# Add the uv .venv to PATH
+ENV PATH=/app/.venv/bin:$PATH
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app
+
+# Note: Set at runtime:
+# - BROWSER_PROVIDER: anchorbrowser, steel, browserbase, hyperbrowser
+# - Provider API keys: ANCHOR_API_KEY, STEEL_API_KEY, etc.
+
+# Run: context server in background, then environment
+CMD ["sh", "-c", "\
+    python3 context.py >&2 & \
+    sleep 2 && \
+    exec hud dev env:env --stdio\
+"]
