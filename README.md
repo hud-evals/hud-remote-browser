@@ -1,225 +1,224 @@
-# HUD Remote Browser MCP Server
+# Remote Browser Environment
 
-This MCP server provides browser automation capabilities using various remote browser providers.
+A HUD environment for browser automation using cloud browser providers.
 
-## Running with Docker
+## 1. Deploy to Platform
 
-The Docker image supports both production and development modes using the same Dockerfile.
+If you haven't already, connect this repo to hud.ai:
 
-### Building the Image
+1. Push to GitHub
+2. Go to [hud.ai](https://hud.ai) → **New** → **Environment**
+3. Connect your GitHub repo
+4. Set required environment variables (see Configuration below)
+5. Your environment builds automatically on each push
 
-```bash
-# Production build (default)
-docker build -t hud-remote-browser:latest .
+Once deployed, your environment is accessible by its slug (e.g., `my-org/remote-browser`).
+
+## 2. Define Tools and Scenarios
+
+Tools are functions agents can call. Scenarios define the evaluation lifecycle.
+
+### Available Tools
+
+- **PlaywrightTool** - High-level browser actions (navigate, click, type)
+- **HudComputerTool** - Screenshot and coordinate-based interactions
+- **AnthropicComputerTool**, **OpenAIComputerTool**, **GeminiComputerTool**, **QwenComputerTool** - Provider-specific computer tools
+
+### Available Scenarios
+
+| Scenario | Description |
+|----------|-------------|
+| `answer` | Browse a URL and return an answer, compared against expected value |
+| `fill-record` | Fill form fields and verify values via CSS selectors |
+| `wiki-speedrun` | Navigate Wikipedia from start to target article (fewer clicks = higher score) |
+| `sheet-from-file` | Create Google Sheet from Excel file and complete a task |
+| `complete-sheet-task` | Complete a task in an existing Google Sheet |
+
+## 3. Create Tasks from Scenarios
+
+Tasks are scenario instances with specific arguments.
+
+**In Code:**
+```python
+tasks = [
+    env("answer",
+        url="https://en.wikipedia.org/wiki/Python_(programming_language)",
+        prompt="What year was Python first released? Return just the year.",
+        expected="1991",
+        compare_mode="contains"
+    ),
+    env("wiki-speedrun",
+        start_page="Cat",
+        target_page="Ancient_Egypt",
+        max_clicks=6
+    ),
+]
 ```
 
-### Running in Production Mode
-
-```bash
-# Using AnchorBrowser
-docker run --rm -i \
-  -e BROWSER_PROVIDER=anchorbrowser \
-  -e ANCHOR_API_KEY=your-api-key \
-  hud-remote-browser:latest
-
-# Using BrowserBase
-docker run --rm -i \
-  -e BROWSER_PROVIDER=browserbase \
-  -e BROWSERBASE_API_KEY=your-api-key \
-  -e BROWSERBASE_PROJECT_ID=your-project-id \
-  hud-remote-browser:latest
+**From JSON:**
+```json
+[
+  {
+    "env": {"name": "my-org/remote-browser"},
+    "scenario": "answer",
+    "args": {
+      "url": "https://en.wikipedia.org/wiki/Python_(programming_language)",
+      "prompt": "What year was Python first released?",
+      "expected": "1991",
+      "compare_mode": "contains"
+    }
+  }
+]
 ```
 
-### Running in Development Mode (Hot Reload)
-
-Development mode allows you to edit code locally and see changes immediately without rebuilding.
-
-#### Option 1: Using `hud dev` (Recommended)
-
-The easiest way to develop with hot-reload:
-
-```bash
-# Set required environment variables
-export BROWSER_PROVIDER=anchorbrowser
-export ANCHOR_API_KEY=your-api-key
-
-# Start development proxy
-hud dev . --build
-
-# This will:
-# - Build/use hud-remote-browser:dev image
-# - Mount ./src for hot-reload
-# - Provide HTTP endpoint for Cursor
-# - Auto-restart on file changes
-# - Pass through environment variables
-# - **Keep browser sessions alive across restarts**
+**On Platform:**
+After deploying, create tasks from your scenarios on hud.ai. Access them by slug:
+```python
+from hud.datasets import load_tasks
+tasks = load_tasks("my-org/sheets-tasks")
 ```
 
-Add the URL from output to Cursor or click the deeplink.
+## 4. Run Evaluations
 
-**Note**: With hot-reload enabled, your browser session persists across code changes. This means you can modify your code and the server will restart automatically without losing your browser state, tabs, or navigation history.
+Run tasks and see results on hud.ai. You have three options:
 
-#### Option 2: Manual Docker Run
+**On Platform:**
+Run evaluations at scale directly on [hud.ai](https://hud.ai) with parallel execution and automatic tracing.
 
-For direct control over the development environment:
-
+**CLI:**
 ```bash
-# Windows
-docker run --rm -i ^
-  -v "%cd%\src:/app/src:rw" ^
-  -e BROWSER_PROVIDER=anchorbrowser ^
-  -e ANCHOR_API_KEY=your-api-key ^
-  -e PYTHONPATH=/app ^
-  hud-remote-browser:dev
-
-# Linux/Mac
-docker run --rm -i \
-  -v "$(pwd)/src:/app/src:rw" \
-  -e BROWSER_PROVIDER=anchorbrowser \
-  -e ANCHOR_API_KEY=your-api-key \
-  -e PYTHONPATH=/app/src \
-  hud-remote-browser:dev
+hud eval ./remote_tasks.json --model gpt-4o --remote  # https://hud.ai/models
+hud eval my-org/sheets-tasks --model gpt-4o --remote --group 5
 ```
 
-The `-v` flag mounts your local `src/` directory into the container, allowing instant code changes.
+**Python:**
+```python
+import hud
+from hud.agents import OpenAIChatAgent  # See all models: https://hud.ai/models
 
-## Supported Browser Providers
+async with hud.eval(tasks) as ctx:
+    agent = OpenAIChatAgent.create(model="gpt-4o")  # Uses inference.hud.ai
+    await agent.run(ctx)
 
-- **anchorbrowser** - Requires `ANCHOR_API_KEY`
-- **browserbase** - Requires `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`
-- **hyperbrowser** - Requires `HYPERBROWSER_API_KEY`
-- **steel** - Requires `STEEL_API_KEY`
-- **kernel** - No additional requirements
+# Results are automatically traced to hud.ai
+```
 
-## Environment Variables
+**With Variants (A/B Testing):**
 
-### Core Variables
+```python
+tasks = [
+    env("answer", url="https://example.com", prompt="What is the heading?", expected="Example Domain"),
+    env("wiki-speedrun", start_page="Cat", target_page="Ancient_Egypt", max_clicks=6),
+]
+variants = {"model": ["gpt-4o-mini", "gpt-4o"]}
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `BROWSER_PROVIDER` | **Yes** | The browser provider to use |
-| `LOG_LEVEL` | No | Logging level (default: INFO) |
+async with hud.eval(tasks, variants=variants, group=2) as ctx:
+    agent = OpenAIChatAgent.create(model=ctx.variants["model"])
+    await agent.run(ctx)
+```
 
-### Provider-Specific Variables
+## Configuration
 
-| Provider | Required Variables |
-|----------|-------------------|
+### Provider API Keys
+
+Set the API key for your browser provider. The environment auto-detects which provider to use:
+
+| Provider | API Key Variable |
+|----------|------------------|
 | anchorbrowser | `ANCHOR_API_KEY` |
-| browserbase | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` |
+| browserbase | `BROWSERBASE_API_KEY` (also needs `BROWSERBASE_PROJECT_ID`) |
 | hyperbrowser | `HYPERBROWSER_API_KEY` |
 | steel | `STEEL_API_KEY` |
+| kernel | `KERNEL_API_KEY` |
 
-### Optional Browser Settings
+**Auto-detection:** If only one API key is set, that provider is used automatically.  
+**Multiple keys:** If multiple API keys are set, specify `BROWSER_PROVIDER` explicitly.
 
-| Variable | Description |
-|----------|-------------|
-| `HEADLESS` | Whether to run browser in headless mode |
-| `DEFAULT_TIMEOUT` | Default timeout for browser operations |
-| `WINDOW_WIDTH` | Browser window width |
-| `WINDOW_HEIGHT` | Browser window height |
-| `PROXY_URL` | HTTP proxy URL |
+### Google Sheets (Optional)
 
-### Proxy Configuration
-
-The remote browser environment supports multiple proxy providers:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PROXY_PROVIDER` | Proxy provider type (auto, decodo, standard, residential, none) | auto |
-
-#### Options:
-
-- **`auto`** (default): Let the browser use its default proxy
-- **`decodo`**: Use Decodo proxy service
-  - Requires: `DECODO_USERNAME`, `DECODO_PASSWORD`
-  - Optional: `DECODO_ROTATING` (false=port 10000, true=test ports 10001-11000)
-- **`standard`**: Use any HTTP/SOCKS proxy
-  - Requires: `PROXY_SERVER`
-  - Optional: `PROXY_USERNAME`, `PROXY_PASSWORD`
-- **`none`**: Force direct connection (no proxy)
-
-Example:
-```bash
-# Use Decodo proxy
-export PROXY_PROVIDER=decodo
-export DECODO_USERNAME=username
-export DECODO_PASSWORD=password
-```
-
-### Google Cloud Platform (GCP) Credentials
-
-For Google Sheets functionality, you have multiple options to provide GCP credentials:
-
-#### Option 1: JSON String (now more lenient)
-```bash
-# Supports standard JSON, single-quoted, or Python dict format
--e GCP_CREDENTIALS_JSON='{"type":"service_account","project_id":"...","private_key":"..."}'
-```
-
-#### Option 2: Base64 Encoded (recommended for complex credentials)
-```bash
-# First encode your credentials file
-base64 < service-account.json
-# Then set the environment variable
--e GCP_CREDENTIALS_BASE64='eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6Li4ufQ=='
-```
-
-#### Option 3: File Path
-```bash
-# Mount the credentials file and reference it
--v /path/to/service-account.json:/app/creds.json \
--e GCP_CREDENTIALS_FILE='/app/creds.json'
-```
-
-#### Option 4: Individual Environment Variables
-```bash
--e GCP_TYPE='service_account' \
--e GCP_PROJECT_ID='your-project-id' \
--e GCP_PRIVATE_KEY_ID='your-key-id' \
--e GCP_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----' \
--e GCP_CLIENT_EMAIL='your-service-account@project.iam.gserviceaccount.com' \
--e GCP_CLIENT_ID='1234567890' \
--e GCP_AUTH_URI='https://accounts.google.com/o/oauth2/auth' \
--e GCP_TOKEN_URI='https://oauth2.googleapis.com/token' \
--e GCP_AUTH_PROVIDER_X509_CERT_URL='https://www.googleapis.com/oauth2/v1/certs' \
--e GCP_CLIENT_X509_CERT_URL='https://www.googleapis.com/robot/v1/metadata/x509/...'
-```
-
-## MCP Resources
-
-The server provides several MCP resources:
-
-### telemetry://live
-Returns real-time telemetry data including the provider's live view URL (if available):
-```json
-{
-  "provider": "anchorbrowser",
-  "status": "running",
-  "live_url": "https://browser.anchorbrowser.io/sessions/abc123",
-  "cdp_url": "wss://browser.anchorbrowser.io/devtools/...",
-  "instance_id": "session_abc123",
-  "timestamp": "2024-01-15T10:30:00.000Z"
-}
-```
-
-### setup://registry
-Returns all available setup functions for browser initialization.
-
-### evaluators://registry
-Returns all available evaluator functions for browser state validation.
-
-## MCP Protocol
-
-The server communicates via stdio using the MCP protocol. Example initialization:
+For Sheet scenarios, provide GCP credentials via one of:
 
 ```bash
-echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {...}}' | \
-  docker run --rm -i -e BROWSER_PROVIDER=steel -e STEEL_API_KEY=... hud-remote-browser:latest
+# Option 1: JSON string
+GCP_CREDENTIALS_JSON='{"type":"service_account",...}'
+
+# Option 2: Base64 encoded
+GCP_CREDENTIALS_BASE64='eyJ0eXBlIjoic2VydmljZV9hY2NvdW50...'
+
+# Option 3: File path
+GCP_CREDENTIALS_FILE='/path/to/service-account.json'
 ```
 
-## Error Handling
+## Local Development
 
-If `BROWSER_PROVIDER` is not set, the server will fail with:
+Use `hud dev` with hot-reload for fast iteration:
+
+```bash
+# 1. Build the Docker image (first time only)
+hud build
+
+# 2. Start with hot-reload on scenarios/evaluate
+hud dev -w scenarios -w evaluate -w setup --port 8765
+
+# 3. Test locally
+python local_test.py
 ```
-BROWSER_PROVIDER environment variable is required. Supported providers: anchorbrowser, steel, browserbase, hyperbrowser, kernel
+
+> ⚠️ **Local runs one task at a time.** The local environment uses a single browser session, so tasks run sequentially. For parallel execution with multiple tasks, push your environment and run remotely:
+> ```bash
+> hud push
+> hud eval ./remote_tasks.json --model gpt-4o --remote --group 5
+> ```
+
+### Hot-Reload
+
+| Component | Reloaded? |
+|-----------|-----------|
+| `scenarios/*.py` | ✅ Yes |
+| `evaluate/*.py` | ✅ Yes (if watched) |
+| `setup/*.py` | ✅ Yes (if watched) |
+| `tools/*.py` | ✅ Yes (if watched) |
+| Browser provider connection | ❌ No (persist) |
+
+**When to rebuild:** Dockerfile changes, provider changes.
+
+### Without Docker
+
+```bash
+# Set environment variables
+export BROWSER_PROVIDER=anchorbrowser
+export ANCHOR_API_KEY=your-key
+
+# Run context server (maintains browser session)
+python context.py &
+
+# Test locally
+python local_test.py
+
+# Test with remote tasks
+python remote_test.py
 ```
+
+## Structure
+
+```
+hud-remote-browser/
+├── env.py              # Environment definition
+├── context.py          # Persistent browser context
+├── tools/              # Browser and computer tools
+├── scenarios/          # Scenario definitions
+│   ├── sheets.py       # Google Sheets scenarios
+│   └── general.py      # General scenarios (answer, fill-record, wiki-speedrun)
+├── setup/              # Setup helpers (navigate, cookies, etc.)
+├── evaluate/           # Evaluation helpers (url_match, page_contains, etc.)
+├── providers/          # Cloud browser providers
+├── local_test.py       # Local testing examples
+├── remote_test.py      # Platform integration examples
+├── remote_tasks.json   # Task definitions
+├── Dockerfile.hud
+└── pyproject.toml
+```
+
+## Documentation
+
+Full documentation: [docs.hud.ai](https://docs.hud.ai)
