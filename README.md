@@ -22,17 +22,17 @@ Tools are functions agents can call. Scenarios define the evaluation lifecycle.
 
 - **PlaywrightTool** - High-level browser actions (navigate, click, type)
 - **HudComputerTool** - Screenshot and coordinate-based interactions
-- **AnthropicComputerTool**, **OpenAIComputerTool**, **GeminiComputerTool** - Provider-specific computer tools
+- **AnthropicComputerTool**, **OpenAIComputerTool**, **GeminiComputerTool**, **QwenComputerTool** - Provider-specific computer tools
 
 ### Available Scenarios
 
 | Scenario | Description |
 |----------|-------------|
-| `complete-sheet-task` | Complete a task in Google Sheets, verify cell values |
-| `sheet-from-file` | Create sheet from Excel file and complete a task |
-| `navigate-to-goal` | Navigate from start URL to reach a target |
-| `form-submit` | Fill and submit a form |
-| `find-information` | Find specific content on a website |
+| `answer` | Browse a URL and return an answer, compared against expected value |
+| `fill-record` | Fill form fields and verify values via CSS selectors |
+| `wiki-speedrun` | Navigate Wikipedia from start to target article (fewer clicks = higher score) |
+| `sheet-from-file` | Create Google Sheet from Excel file and complete a task |
+| `complete-sheet-task` | Complete a task in an existing Google Sheet |
 
 ## 3. Create Tasks from Scenarios
 
@@ -41,15 +41,16 @@ Tasks are scenario instances with specific arguments.
 **In Code:**
 ```python
 tasks = [
-    env("complete-sheet-task",
-        prompt="Sum cells A1:A5 and put result in A6",
-        sheet_url="https://docs.google.com/spreadsheets/d/.../edit",
-        expected_cells={"A6": "15"}
+    env("answer",
+        url="https://en.wikipedia.org/wiki/Python_(programming_language)",
+        prompt="What year was Python first released? Return just the year.",
+        expected="1991",
+        compare_mode="contains"
     ),
-    env("navigate-to-goal",
-        start_url="https://wikipedia.org",
-        prompt="Navigate to the English Wikipedia main page",
-        target_url="en.wikipedia.org"
+    env("wiki-speedrun",
+        start_page="Cat",
+        target_page="Ancient_Egypt",
+        max_clicks=6
     ),
 ]
 ```
@@ -59,11 +60,12 @@ tasks = [
 [
   {
     "env": {"name": "my-org/remote-browser"},
-    "scenario": "complete-sheet-task",
+    "scenario": "answer",
     "args": {
-      "prompt": "Sum cells A1:A5 and put result in A6",
-      "sheet_url": "https://docs.google.com/spreadsheets/d/.../edit",
-      "expected_cells": {"A6": "15"}
+      "url": "https://en.wikipedia.org/wiki/Python_(programming_language)",
+      "prompt": "What year was Python first released?",
+      "expected": "1991",
+      "compare_mode": "contains"
     }
   }
 ]
@@ -105,8 +107,8 @@ async with hud.eval(tasks) as ctx:
 
 ```python
 tasks = [
-    env("complete-sheet-task", prompt="Sum A1:A5", sheet_url="...", expected_cells={"A6": "15"}),
-    env("navigate-to-goal", start_url="https://wikipedia.org", prompt="Go to main page", target_url="en.wikipedia.org"),
+    env("answer", url="https://example.com", prompt="What is the heading?", expected="Example Domain"),
+    env("wiki-speedrun", start_page="Cat", target_page="Ancient_Egypt", max_clicks=6),
 ]
 variants = {"model": ["gpt-4o-mini", "gpt-4o"]}
 
@@ -117,20 +119,20 @@ async with hud.eval(tasks, variants=variants, group=2) as ctx:
 
 ## Configuration
 
-### Required Variables
-
-| Variable | Description |
-|----------|-------------|
-| `BROWSER_PROVIDER` | Provider to use: `anchorbrowser`, `browserbase`, `hyperbrowser`, `steel` |
-
 ### Provider API Keys
 
-| Provider | Required Variables |
-|----------|-------------------|
+Set the API key for your browser provider. The environment auto-detects which provider to use:
+
+| Provider | API Key Variable |
+|----------|------------------|
 | anchorbrowser | `ANCHOR_API_KEY` |
-| browserbase | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` |
+| browserbase | `BROWSERBASE_API_KEY` (also needs `BROWSERBASE_PROJECT_ID`) |
 | hyperbrowser | `HYPERBROWSER_API_KEY` |
 | steel | `STEEL_API_KEY` |
+| kernel | `KERNEL_API_KEY` |
+
+**Auto-detection:** If only one API key is set, that provider is used automatically.  
+**Multiple keys:** If multiple API keys are set, specify `BROWSER_PROVIDER` explicitly.
 
 ### Google Sheets (Optional)
 
@@ -161,6 +163,12 @@ hud dev -w scenarios -w evaluate -w setup --port 8765
 # 3. Test locally
 python local_test.py
 ```
+
+> ⚠️ **Local runs one task at a time.** The local environment uses a single browser session, so tasks run sequentially. For parallel execution with multiple tasks, push your environment and run remotely:
+> ```bash
+> hud push
+> hud eval ./remote_tasks.json --model gpt-4o --remote --group 5
+> ```
 
 ### Hot-Reload
 
@@ -200,7 +208,7 @@ hud-remote-browser/
 ├── tools/              # Browser and computer tools
 ├── scenarios/          # Scenario definitions
 │   ├── sheets.py       # Google Sheets scenarios
-│   └── general.py      # Navigation/form scenarios
+│   └── general.py      # General scenarios (answer, fill-record, wiki-speedrun)
 ├── setup/              # Setup helpers (navigate, cookies, etc.)
 ├── evaluate/           # Evaluation helpers (url_match, page_contains, etc.)
 ├── providers/          # Cloud browser providers

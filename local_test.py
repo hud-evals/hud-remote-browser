@@ -81,29 +81,6 @@ async def test_wiki_speedrun():
         await agent.run(ctx)
 
 
-async def test_distribution():
-    """Test multiple tasks with variants and groups for A/B testing."""
-    print("\n=== Test 4: Distribution (Variants + Groups) ===")
-
-    tasks = [
-        env("answer",
-            url="https://example.com",
-            prompt="What is the main heading on this page?",
-            expected="Example Domain",
-            compare_mode="contains"),
-        env("wiki-speedrun",
-            start_page="Cat",
-            target_page="Ancient_Egypt",
-            max_clicks=6),
-    ]
-    variants = {"model": ["gpt-4o-mini", "gpt-4o"]}
-    group = 2
-
-    async with hud.eval(tasks, variants=variants, group=group) as ctx:
-        agent = OpenAIChatAgent.create(model=ctx.variants["model"])
-        await agent.run(ctx, max_steps=20)
-
-
 async def main():
     print("Remote Browser Environment - Local Test")
     print("=" * 50)
@@ -115,9 +92,8 @@ async def main():
 
     await test_tools_standalone()
     # Uncomment to run scenarios:
-    await test_answer_scenario()
-    await test_wiki_speedrun()
-    await test_distribution()
+    # await test_answer_scenario()
+    # await test_wiki_speedrun()
 
 
 if __name__ == "__main__":
