@@ -175,31 +175,30 @@ async def initialize_environment(ctx: Any) -> None:
         raise
 
 
-# Mapping of API key env vars to provider names
-PROVIDER_API_KEYS = {
-    "ANCHOR_API_KEY": "anchorbrowser",
-    "STEEL_API_KEY": "steel",
-    "BROWSERBASE_API_KEY": "browserbase",
-    "HYPERBROWSER_API_KEY": "hyperbrowser",
-    "KERNEL_API_KEY": "kernel",
-}
+# Provider detection priority (first available wins)
+PROVIDER_PRIORITY = [
+    ("ANCHOR_API_KEY", "anchorbrowser"),
+    ("STEEL_API_KEY", "steel"),
+    ("BROWSERBASE_API_KEY", "browserbase"),
+    ("HYPERBROWSER_API_KEY", "hyperbrowser"),
+    ("KERNEL_API_KEY", "kernel"),
+]
 
 
 def _detect_provider() -> str:
-    """Detect provider from BROWSER_PROVIDER or auto-detect from API keys."""
+    """Detect provider from BROWSER_PROVIDER or auto-detect from API keys with priority."""
     explicit = os.getenv("BROWSER_PROVIDER", "").lower()
     if explicit:
         return explicit
     
-    available = [p for k, p in PROVIDER_API_KEYS.items() if os.getenv(k)]
+    # Use priority order: first API key found wins
+    for api_key_var, provider_name in PROVIDER_PRIORITY:
+        if os.getenv(api_key_var):
+            logger.info("Auto-detected provider: %s (from %s)", provider_name, api_key_var)
+            return provider_name
     
-    if len(available) == 1:
-        logger.info("Auto-detected provider: %s", available[0])
-        return available[0]
-    elif len(available) > 1:
-        raise ValueError(f"Multiple API keys set ({', '.join(available)}). Set BROWSER_PROVIDER.")
-    else:
-        raise ValueError(f"No API key set. Provide one of: {', '.join(PROVIDER_API_KEYS.keys())}")
+    api_keys = [k for k, _ in PROVIDER_PRIORITY]
+    raise ValueError(f"No API key set. Provide one of: {', '.join(api_keys)}")
 
 
 def _get_provider_config(provider_name: str) -> dict:
@@ -228,13 +227,24 @@ async def shutdown_environment() -> None:
     """Shutdown the remote browser environment."""
     global persistent_ctx, playwright_tool, browser_executor
 
-    logger.info("Shutting down browser provider...")
+    logger.info("Shutting down remote browser environment...")
+    
+    # Close playwright tool first (disconnects from browser)
+    try:
+        if playwright_tool and hasattr(playwright_tool, "close"):
+            await playwright_tool.close()
+            logger.info("Playwright tool closed")
+    except Exception as e:
+        logger.warning("Error closing playwright tool: %s", e)
+    
+    # Then close the browser provider (terminates session)
     try:
         if persistent_ctx:
             provider = persistent_ctx.get_browser_provider()
             if provider and hasattr(provider, "close"):
                 provider.close()
                 logger.info("Browser provider closed")
+            persistent_ctx.set_initialized(False)
     except Exception as e:
         logger.error("Error during shutdown: %s", e)
     finally:

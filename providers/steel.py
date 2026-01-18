@@ -36,50 +36,53 @@ class SteelProvider(BrowserProvider):
         if not self.api_key:
             raise ValueError("Steel API key not provided")
 
-    async def launch(self, **kwargs) -> str:
+    async def launch(self, **kwargs: Any) -> str:
         """Launch a Steel browser instance.
 
         Args:
             **kwargs: Launch options including:
-                - sessionTimeout: Session timeout in milliseconds (max 24 hours)
-                - proxy: Proxy configuration (user:pass@host:port)
-                - blockAds: Block ads (default: False)
-                - stealth: Enable stealth mode
-                - isSelenium: Create Selenium-compatible session
-                - loadExtensions: Load Chrome extensions
-                - solveCaptchas: Enable CAPTCHA solving
-                - context: Saved context (cookies, localStorage)
+                - timeout: Session timeout in milliseconds (max 24 hours, default 30 min)
+                - useProxy: Enable Steel's built-in proxy
+                - proxyUrl: Custom proxy URL (user:pass@host:port)
+                - blockAds: Block ads
+                - solveCaptcha: Enable CAPTCHA solving
+                - sessionContext: Saved context (cookies, localStorage)
 
         Returns:
             CDP WebSocket URL for connecting to the browser
         """
-        # Build request payload using Steel's format
-        request_data = {
-            "sessionId": kwargs.get("sessionId", ""),
-            "userAgent": kwargs.get("userAgent", ""),
-            "useProxy": kwargs.get("useProxy", False),
-            "proxyUrl": kwargs.get("proxyUrl", ""),
-            "blockAds": kwargs.get("blockAds", False),
-            "solveCaptcha": kwargs.get("solveCaptcha", False),
-            "timeout": kwargs.get("timeout", 1800000),  # 30 minutes default
-            "concurrency": kwargs.get("concurrency", 1),
-            "isSelenium": kwargs.get("isSelenium", False),
-            "region": kwargs.get("region", "lax"),
-        }
+        # Build request payload - Steel API is minimal, only include what's needed
+        # See: https://docs.steel.dev/overview/sessions-api/overview
+        request_data: Dict[str, Any] = {}
 
-        # Add dimensions if specified
+        # Timeout (optional, in ms)
+        if "timeout" in kwargs:
+            request_data["timeout"] = kwargs["timeout"]
+
+        # Proxy configuration
+        if kwargs.get("useProxy"):
+            request_data["useProxy"] = True
+        if "proxyUrl" in kwargs and kwargs["proxyUrl"]:
+            request_data["proxyUrl"] = kwargs["proxyUrl"]
+
+        # Optional features
+        if kwargs.get("blockAds"):
+            request_data["blockAds"] = True
+        if kwargs.get("solveCaptcha"):
+            request_data["solveCaptcha"] = True
+
+        # Dimensions - sync with DISPLAY_WIDTH/HEIGHT to prevent coordinate drift
         if "dimensions" in kwargs:
             request_data["dimensions"] = kwargs["dimensions"]
         else:
-            request_data["dimensions"] = {"width": 1920, "height": 1080}
+            width = int(os.getenv("DISPLAY_WIDTH", "1448"))
+            height = int(os.getenv("DISPLAY_HEIGHT", "944"))
+            request_data["dimensions"] = {"width": width, "height": height}
+            logger.info("Setting dimensions to %sx%s", width, height)
 
-        # Add session context if provided
+        # Session context if provided
         if "sessionContext" in kwargs:
             request_data["sessionContext"] = kwargs["sessionContext"]
-
-        # Add stealth config
-        if "stealthConfig" in kwargs:
-            request_data["stealthConfig"] = kwargs["stealthConfig"]
 
         # Make API request
         async with httpx.AsyncClient() as client:
@@ -99,20 +102,32 @@ class SteelProvider(BrowserProvider):
         if not self._instance_id:
             raise Exception("Failed to get session ID from Steel response")
 
-        # Get WebSocket URL - Steel returns wsUrl
-        self._cdp_url = data.get("wsUrl")
-        if not self._cdp_url:
-            # Fallback to constructing URL if not provided
-            self._cdp_url = f"wss://api.steel.dev/sessions/{self._instance_id}"
+        # Construct WebSocket URL - Steel does NOT return wsUrl in API response
+        # Must construct it: wss://connect.steel.dev?apiKey=API_KEY&sessionId=SESSION_ID
+        # See: https://docs.steel.dev/overview/guides
+        self._cdp_url = f"wss://connect.steel.dev?apiKey={self.api_key}&sessionId={self._instance_id}"
 
         self._is_running = True
 
-        logger.info(f"Launched Steel session: {self._instance_id}")
-        logger.info(f"CDP URL: {self._cdp_url}")
+        logger.info("Launched Steel session: %s", self._instance_id)
 
         # Store additional URLs for reference
+        # Steel may return sessionViewerUrl and/or debugUrl for live viewing
+        # If not returned, construct from session ID
+        # Format: https://app.steel.dev/sessions/{sessionId}/viewer
         self._debug_url = data.get("debugUrl")
-        self._live_view_url = data.get("liveViewUrl")
+        self._session_viewer_url = data.get("sessionViewerUrl") or data.get("session_viewer_url")
+        
+        # Construct live view URL if not provided
+        # The viewer URL should work without authentication
+        if self._debug_url:
+            self._live_view_url = self._debug_url
+        elif self._session_viewer_url:
+            self._live_view_url = self._session_viewer_url
+        else:
+            # Construct the viewer URL from session ID
+            self._live_view_url = f"https://app.steel.dev/sessions/{self._instance_id}/viewer"
+            logger.info("Constructed live view URL from session ID")
 
         return self._cdp_url
 
@@ -154,7 +169,7 @@ class SteelProvider(BrowserProvider):
                     response = await client.get(
                         f"{self.base_url}/v1/sessions/{self._instance_id}",
                         headers={
-                            "steel_api_key": str(self.api_key),
+                            "Steel-Api-Key": str(self.api_key),
                             "Content-Type": "application/json",
                         },
                         timeout=10.0,

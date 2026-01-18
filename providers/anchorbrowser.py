@@ -35,42 +35,47 @@ class AnchorBrowserProvider(BrowserProvider):
         if not self.api_key:
             raise ValueError("AnchorBrowser API key not provided")
 
-    async def launch(self, **kwargs) -> str:
+    async def launch(self, **kwargs: Any) -> str:
         """Launch an AnchorBrowser instance.
 
         Args:
             **kwargs: Launch options including:
                 - max_duration: Maximum session duration in seconds (default: 120)
                 - idle_timeout: Idle timeout in seconds (default: 30)
-                - proxy: Proxy configuration dict with:
-                    - type: "custom" or "anchor_residential"
-                    - server: Proxy server address (for custom)
-                    - username: Proxy username (for custom)
-                    - password: Proxy password (for custom)
-                    - country_code: Country code (for anchor_residential)
-                - headless: Whether to run headless
-                - viewport: Viewport size
-                - captcha_solver: Enable CAPTCHA solving
-                - adblock: Enable ad blocking
-                - popup_blocker: Enable popup blocking
+                - proxy: Proxy configuration dict
+                - viewport: Viewport size dict with width/height
 
         Returns:
             CDP URL for connecting to the browser
         """
         # Build request payload
-        request_data = {
-            "session": {
-                "timeout": {
-                    "max_duration": kwargs.get("max_duration", 120),
-                    "idle_timeout": kwargs.get("idle_timeout", 30),
-                },
-            },
-            "browser": {
-                "adblock": {"active": True},
-                "popup_blocker": {"active": True},
-                "captcha_solver": {"active": True},
+        # See: https://docs.anchorbrowser.io/api-reference/browser-sessions/start-browser-session
+        # Structure: { "session": {...}, "browser": {...} }
+        
+        # Session configuration
+        session_config: Dict[str, Any] = {
+            "timeout": {
+                "max_duration": kwargs.get("max_duration", 120),
+                "idle_timeout": kwargs.get("idle_timeout", 30),
             },
         }
+
+        # Browser configuration with viewport under browser object
+        browser_config: Dict[str, Any] = {
+            "adblock": {"active": True},
+            "popup_blocker": {"active": True},
+            "captcha_solver": {"active": True},
+        }
+
+        # Viewport configuration - sync with DISPLAY_WIDTH/HEIGHT
+        # AnchorBrowser default is 1440x900
+        if "viewport" in kwargs:
+            browser_config["viewport"] = kwargs["viewport"]
+        else:
+            width = int(os.getenv("DISPLAY_WIDTH", "1440"))
+            height = int(os.getenv("DISPLAY_HEIGHT", "900"))
+            browser_config["viewport"] = {"width": width, "height": height}
+            logger.info("Setting viewport to %sx%s", width, height)
 
         proxy_config = await get_proxy_config()
 
@@ -83,8 +88,14 @@ class AnchorBrowserProvider(BrowserProvider):
             }
             logger.info("Using default AnchorBrowser residential proxy")
 
-        # Add proxy to request data
-        request_data["session"]["proxy"] = proxy_config
+        # Add proxy to session config
+        session_config["proxy"] = proxy_config
+
+        # Build final request
+        request_data: Dict[str, Any] = {
+            "session": session_config,
+            "browser": browser_config,
+        }
 
         # Make API request
         async with httpx.AsyncClient() as client:

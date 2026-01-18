@@ -28,11 +28,10 @@ Tools are functions agents can call. Scenarios define the evaluation lifecycle.
 
 | Scenario | Description |
 |----------|-------------|
-| `answer` | Browse a URL and return an answer, compared against expected value |
+| `answer` | Browse a URL and return an answer, optionally compared against expected value |
 | `fill-record` | Fill form fields and verify values via CSS selectors |
 | `wiki-speedrun` | Navigate Wikipedia from start to target article (fewer clicks = higher score) |
 | `sheet-from-file` | Create Google Sheet from Excel file and complete a task |
-| `complete-sheet-task` | Complete a task in an existing Google Sheet |
 
 ## 3. Create Tasks from Scenarios
 
@@ -131,8 +130,8 @@ Set the API key for your browser provider. The environment auto-detects which pr
 | steel | `STEEL_API_KEY` |
 | kernel | `KERNEL_API_KEY` |
 
-**Auto-detection:** If only one API key is set, that provider is used automatically.  
-**Multiple keys:** If multiple API keys are set, specify `BROWSER_PROVIDER` explicitly.
+**Auto-detection:** Provider is detected from API keys with priority: Anchor → Steel → BrowserBase → HyperBrowser → Kernel.  
+**Override:** Set `BROWSER_PROVIDER` explicitly to override auto-detection.
 
 ### Google Sheets (Optional)
 
@@ -185,9 +184,9 @@ python local_test.py
 ### Without Docker
 
 ```bash
-# Set environment variables
-export BROWSER_PROVIDER=anchorbrowser
+# Set environment variables (provider auto-detected from API key)
 export ANCHOR_API_KEY=your-key
+# Optional: export BROWSER_PROVIDER=anchorbrowser  # to override auto-detection
 
 # Run context server (maintains browser session)
 python context.py &

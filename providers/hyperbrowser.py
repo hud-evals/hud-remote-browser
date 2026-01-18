@@ -38,7 +38,7 @@ class HyperBrowserProvider(BrowserProvider):
         if not self.api_key:
             raise ValueError("HyperBrowser API key not provided")
 
-    async def launch(self, **kwargs) -> str:
+    async def launch(self, **kwargs: Any) -> str:
         """Launch a HyperBrowser instance.
 
         Args:
@@ -67,13 +67,30 @@ class HyperBrowserProvider(BrowserProvider):
             CDP URL for connecting to the browser
         """
         # Build request payload with defaults
-        request_data = {
-            "useStealth": kwargs.get("useStealth", False),
-            "useProxy": kwargs.get("useProxy", False),
-        }
+        # See: https://docs.hyperbrowser.ai/reference/api-reference/sessions
+        request_data: Dict[str, Any] = {}
+
+        # Only include stealth/proxy if explicitly enabled
+        if kwargs.get("useStealth"):
+            request_data["useStealth"] = True
+        if kwargs.get("useProxy"):
+            request_data["useProxy"] = True
+
+        # Screen configuration - sync with DISPLAY_WIDTH/HEIGHT to prevent coordinate drift
+        # NOTE: HyperBrowser's "screen" sets the emulated DISPLAY resolution, not the viewport.
+        # The actual viewport (visible content area) may be smaller due to browser chrome.
+        # To ensure exact viewport size, set viewport explicitly via Playwright after connecting.
+        # See: https://docs.hyperbrowser.ai/sessions/parameters
+        if "screen" in kwargs:
+            request_data["screen"] = kwargs["screen"]
+        else:
+            width = int(os.getenv("DISPLAY_WIDTH", "1448"))
+            height = int(os.getenv("DISPLAY_HEIGHT", "944"))
+            request_data["screen"] = {"width": width, "height": height}
+            logger.info("Setting screen to %sx%s (note: viewport may differ)", width, height)
 
         # Add proxy configuration
-        if request_data["useProxy"]:
+        if request_data.get("useProxy"):
             if "proxyServer" in kwargs:
                 request_data["proxyServer"] = kwargs["proxyServer"]
                 request_data["proxyServerUsername"] = kwargs.get("proxyServerUsername")
@@ -120,9 +137,10 @@ class HyperBrowserProvider(BrowserProvider):
         if "browserArgs" in kwargs:
             request_data["browserArgs"] = kwargs["browserArgs"]
 
-        # Timeout
-        if "timeoutMinutes" in kwargs:
-            request_data["timeoutMinutes"] = kwargs["timeoutMinutes"]
+        # Timeout - set a reasonable default to prevent early auto-close
+        # Min: 1 minute, Max: 720 minutes (12 hours)
+        # Sessions auto-close when disconnected unless keepAlive is used
+        request_data["timeoutMinutes"] = kwargs.get("timeoutMinutes", 30)  # 30 min default
 
         # Make API request
         async with httpx.AsyncClient() as client:

@@ -29,8 +29,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
 # Note: Set at runtime:
-# - BROWSER_PROVIDER: anchorbrowser, steel, browserbase, hyperbrowser
 # - Provider API keys: ANCHOR_API_KEY, STEEL_API_KEY, etc.
+# - Provider auto-detected from API key (priority: Anchor → Steel → BrowserBase → HyperBrowser)
+# - Optional: BROWSER_PROVIDER to override auto-detection
 
 # Run: context server in background, then environment
 CMD ["sh", "-c", "\

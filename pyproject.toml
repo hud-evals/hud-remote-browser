@@ -3,7 +3,10 @@ name = "hud-remote-browser"
 version = "0.1.0"
 description = "HUD Remote Browser Controller with MCP tools for cloud browser providers"
 requires-python = ">=3.11,<3.13"
-dependencies = [ "hud-python==0.5.0", "pyautogui", "playwright", "httpx", "typer", "google-api-python-client", "google-auth",]
+dependencies = [ "hud-python>=0.5.12", "pyautogui", "playwright", "httpx", "typer", "google-api-python-client", "google-auth",]
+
+[project.optional-dependencies]
+test = ["Pillow"]  # For verifying screenshot dimensions in test scripts
 
 [build-system]
 requires = [ "hatchling",]

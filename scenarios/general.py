@@ -67,18 +67,18 @@ def register_general_scenarios(env: Any) -> None:
     async def answer(
         url: str,
         prompt: str,
-        expected: Any,
+        expected: Optional[Any] = None,
         compare_mode: str = "exact",
     ) -> Any:
         """Generic task where agent browses and returns an answer.
         
         The agent explores the page(s), then yields a final answer which
-        is compared against the expected value.
+        is compared against the expected value (if provided).
         
         Args:
             url: Starting URL
             prompt: Task instruction (should ask agent to return an answer)
-            expected: The expected answer to compare against
+            expected: Optional expected answer to compare against. If None, reward is 1.0 on completion.
             compare_mode: How to compare - "exact", "contains", "json", "numeric", "regex"
         
         Example task:
@@ -111,11 +111,15 @@ When you have found the answer, respond with your final answer clearly."""
         # Get the agent's response
         agent_response = yield full_prompt
 
-        # Evaluate by comparing answers
-        reward = compare_answers(agent_response, expected, compare_mode)
-        
-        logger.info("Answer task: expected='%s', got='%s', mode=%s, reward=%.2f",
-                   expected, agent_response, compare_mode, reward)
+        # Evaluate by comparing answers (if expected is provided)
+        if expected is not None:
+            reward = compare_answers(agent_response, expected, compare_mode)
+            logger.info("Answer task: expected='%s', got='%s', mode=%s, reward=%.2f",
+                       expected, agent_response, compare_mode, reward)
+        else:
+            reward = 1.0
+            logger.info("Answer task: no expected value, agent response='%s', reward=%.2f",
+                       agent_response, reward)
 
         yield reward
 
@@ -123,7 +127,7 @@ When you have found the answer, respond with your final answer clearly."""
     async def fill_record(
         url: str,
         prompt: str,
-        fields: Dict[str, Any],
+        fields: Optional[Dict[str, Any]] = None,
         verify: Optional[Dict[str, str]] = None,
     ) -> Any:
         """Fill form fields and verify values via selectors.
@@ -134,7 +138,7 @@ When you have found the answer, respond with your final answer clearly."""
         Args:
             url: Page with the form/inputs
             prompt: Instructions for filling
-            fields: Dict describing what to fill {description: value}
+            fields: Optional dict describing what to fill {description: value}
             verify: Dict mapping CSS selectors to expected values
                     e.g. {"#name-input": "John", "input[name='email']": "john@example.com"}
         
@@ -159,10 +163,10 @@ When you have found the answer, respond with your final answer clearly."""
         # Setup
         await navigate_to_url(playwright_tool, url)
 
-        # Build field instructions
-        fields_desc = "\n".join([f"- {k}: {v}" for k, v in fields.items()])
-
-        full_prompt = f"""You are on a page with form inputs.
+        # Build prompt with optional field instructions
+        if fields:
+            fields_desc = "\n".join([f"- {k}: {v}" for k, v in fields.items()])
+            full_prompt = f"""You are on a page with form inputs.
 
 {prompt}
 
@@ -170,6 +174,12 @@ Fill in the following:
 {fields_desc}
 
 Use the browser tools to locate and fill each field."""
+        else:
+            full_prompt = f"""You are on a page with form inputs.
+
+{prompt}
+
+Use the browser tools to locate and fill the required fields."""
 
         _ = yield full_prompt
 
