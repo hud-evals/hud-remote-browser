@@ -36,6 +36,9 @@ def register_sheets_scenarios(env: Any) -> None:
         playwright_tool = persistent_ctx.playwright_tool if persistent_ctx else None
 
         if not playwright_tool:
+            logger.error("No playwright tool available")
+            # Must yield prompt first, then reward (scenario protocol)
+            _ = yield "[ERROR] Environment setup failed: No playwright tool available. Please check environment configuration."
             yield 0.0
             return
 
@@ -46,11 +49,14 @@ def register_sheets_scenarios(env: Any) -> None:
             result = await sheets_from_bytes(playwright_tool, file_bytes, sheet_name)
         else:
             logger.error("No file_url or file_bytes provided")
+            _ = yield "[ERROR] Environment setup failed: No file_url or file_bytes provided."
             yield 0.0
             return
 
         if not result.get("success"):
-            logger.error("Failed to create sheet: %s", result.get("error"))
+            error_msg = result.get("error", "Unknown error")
+            logger.error("Failed to create sheet: %s", error_msg)
+            _ = yield f"[ERROR] Environment setup failed: {error_msg}. Please check GCP credentials configuration."
             yield 0.0
             return
 

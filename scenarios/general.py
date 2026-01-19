@@ -96,6 +96,9 @@ def register_general_scenarios(env: Any) -> None:
         playwright_tool = persistent_ctx.playwright_tool if persistent_ctx else None
 
         if not playwright_tool:
+            logger.error("No playwright tool available for answer scenario")
+            # Must yield prompt first, then reward (scenario protocol)
+            _ = yield "[ERROR] Environment setup failed: No playwright tool available. Please check environment configuration."
             yield 0.0
             return
 
@@ -157,6 +160,9 @@ When you have found the answer, respond with your final answer clearly."""
         playwright_tool = persistent_ctx.playwright_tool if persistent_ctx else None
 
         if not playwright_tool:
+            logger.error("No playwright tool available for fill-record scenario")
+            # Must yield prompt first, then reward (scenario protocol)
+            _ = yield "[ERROR] Environment setup failed: No playwright tool available. Please check environment configuration."
             yield 0.0
             return
 
@@ -252,6 +258,9 @@ Use the browser tools to locate and fill the required fields."""
         playwright_tool = persistent_ctx.playwright_tool if persistent_ctx else None
 
         if not playwright_tool:
+            logger.error("No playwright tool available for wiki-speedrun scenario")
+            # Must yield prompt first, then reward (scenario protocol)
+            _ = yield "[ERROR] Environment setup failed: No playwright tool available. Please check environment configuration."
             yield 0.0
             return
 

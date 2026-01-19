@@ -149,6 +149,25 @@ async def initialize_environment(ctx: Any) -> None:
         await playwright_tool._ensure_browser()
         logger.info("Playwright connected")
 
+        # Get actual viewport from the browser and update DISPLAY_WIDTH/HEIGHT
+        # This is critical because some providers (like BrowserBase) may adjust
+        # the viewport to a supported size different from what was requested
+        actual_viewport = await _get_actual_viewport(playwright_tool)
+        if actual_viewport:
+            actual_width, actual_height = actual_viewport
+            requested_width = int(os.getenv("DISPLAY_WIDTH", "1280"))
+            requested_height = int(os.getenv("DISPLAY_HEIGHT", "720"))
+            
+            if (actual_width, actual_height) != (requested_width, requested_height):
+                logger.warning(
+                    "Viewport mismatch! Requested %sx%s, actual %sx%s. Updating DISPLAY_* env vars.",
+                    requested_width, requested_height, actual_width, actual_height
+                )
+                os.environ["DISPLAY_WIDTH"] = str(actual_width)
+                os.environ["DISPLAY_HEIGHT"] = str(actual_height)
+            else:
+                logger.info("Viewport matches: %sx%s", actual_width, actual_height)
+
         # Register tools
         env.add_tool(playwright_tool)
         
@@ -173,6 +192,35 @@ async def initialize_environment(ctx: Any) -> None:
         import traceback
         logger.error("Traceback: %s", traceback.format_exc())
         raise
+
+
+async def _get_actual_viewport(playwright_tool: Any) -> tuple[int, int] | None:
+    """Get actual viewport size from the browser.
+    
+    This queries the browser's actual viewport dimensions, which may differ
+    from what was requested if the provider adjusted it (e.g., BrowserBase
+    only supports specific sizes without advancedStealth).
+    
+    Returns:
+        (width, height) tuple or None if unable to determine
+    """
+    try:
+        page = await playwright_tool._ensure_page()
+        viewport = page.viewport_size
+        if viewport:
+            return (viewport["width"], viewport["height"])
+        
+        # Fallback: evaluate in browser
+        result = await page.evaluate("""
+            () => ({
+                width: window.innerWidth,
+                height: window.innerHeight
+            })
+        """)
+        return (result["width"], result["height"])
+    except Exception as e:
+        logger.warning("Failed to get actual viewport: %s", e)
+        return None
 
 
 # Provider detection priority (first available wins)
