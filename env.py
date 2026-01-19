@@ -166,16 +166,13 @@ async def initialize_environment(ctx: Any) -> None:
                 os.environ["DISPLAY_WIDTH"] = str(actual_width)
                 os.environ["DISPLAY_HEIGHT"] = str(actual_height)
                 
-                # CRITICAL: Re-instantiate computer_settings to pick up the new env vars
-                # The SDK's computer_settings singleton is created at import time, so we
-                # need to re-create it after updating os.environ for the computer tools
-                # to use the correct dimensions for coordinate scaling
-                from hud.tools.computer import settings as computer_settings_module
-                computer_settings_module.computer_settings = computer_settings_module.ComputerSettings()
+                from hud.tools.computer.settings import computer_settings
+                computer_settings.DISPLAY_WIDTH = actual_width
+                computer_settings.DISPLAY_HEIGHT = actual_height
                 logger.info(
-                    "Re-initialized computer_settings with DISPLAY: %sx%s",
-                    computer_settings_module.computer_settings.DISPLAY_WIDTH,
-                    computer_settings_module.computer_settings.DISPLAY_HEIGHT,
+                    "Updated computer_settings with DISPLAY: %sx%s",
+                    computer_settings.DISPLAY_WIDTH,
+                    computer_settings.DISPLAY_HEIGHT,
                 )
             else:
                 logger.info("Viewport matches: %sx%s", actual_width, actual_height)
