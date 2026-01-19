@@ -205,12 +205,18 @@ async def _get_actual_viewport(playwright_tool: Any) -> tuple[int, int] | None:
         (width, height) tuple or None if unable to determine
     """
     try:
-        page = await playwright_tool._ensure_page()
+        # After _ensure_browser() is called, playwright_tool.page should be available
+        page = playwright_tool.page
+        if not page:
+            logger.warning("No page available to get viewport")
+            return None
+        
+        # Try viewport_size first (Playwright's configured viewport)
         viewport = page.viewport_size
         if viewport:
             return (viewport["width"], viewport["height"])
         
-        # Fallback: evaluate in browser
+        # Fallback: evaluate in browser to get actual window dimensions
         result = await page.evaluate("""
             () => ({
                 width: window.innerWidth,
