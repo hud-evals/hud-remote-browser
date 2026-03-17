@@ -3,7 +3,7 @@ name = "hud-remote-browser"
 version = "0.1.0"
 description = "HUD Remote Browser Controller with MCP tools for cloud browser providers"
 requires-python = ">=3.11,<3.13"
-dependencies = [ "hud-python>=0.5.32", "pyautogui", "playwright", "httpx", "typer", "google-api-python-client", "google-auth", "Pillow",]
+dependencies = [ "hud-python>=0.5.33", "pyautogui", "playwright", "httpx", "typer", "google-api-python-client", "google-auth", "Pillow",]
 # Note: Pillow is required for screenshot rescaling in computer tools
 
 [build-system]
