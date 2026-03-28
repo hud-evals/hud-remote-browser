@@ -63,7 +63,7 @@ def compare_answers(actual: Any, expected: Any, mode: str = "exact") -> float:
 def register_general_scenarios(env: Any) -> None:
     """Register general browser scenarios with the environment."""
 
-    @env.scenario("answer")
+    @env.scenario("answer", exclude_tools=["hud_validate"])
     async def answer(
         url: str,
         prompt: str,
@@ -126,7 +126,7 @@ When you have found the answer, respond with your final answer clearly."""
 
         yield reward
 
-    @env.scenario("fill-record")
+    @env.scenario("fill-record", exclude_tools=["hud_validate"])
     async def fill_record(
         url: str,
         prompt: str,
@@ -222,7 +222,7 @@ Use the browser tools to locate and fill the required fields."""
         
         yield reward
 
-    @env.scenario("wiki-speedrun")
+    @env.scenario("wiki-speedrun", exclude_tools=["hud_validate"])
     async def wiki_speedrun(
         start_page: str,
         target_page: str,

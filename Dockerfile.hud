@@ -12,6 +12,7 @@ COPY providers/ ./providers/
 COPY setup/ ./setup/
 COPY evaluate/ ./evaluate/
 COPY scenarios/ ./scenarios/
+COPY tests/ ./tests/
 
 RUN uv sync
 

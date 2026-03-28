@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def register_sheets_scenarios(env: Any) -> None:
     """Register Google Sheets scenarios with the environment."""
 
-    @env.scenario("sheet-from-file")
+    @env.scenario("sheet-from-file", exclude_tools=["hud_validate"])
     async def sheet_from_file(
         prompt: str,
         file_url: Optional[str] = None,
