@@ -3,97 +3,88 @@
 Development workflow (Docker with hot-reload):
 1. Build: hud build
 2. Start: hud dev -w scenarios -w evaluate -w setup --port 8765
-3. Test: python local_test.py
+3. Test: python local_test.py --list
+         python local_test.py --task wiki-python-year
+         python local_test.py --task wiki-easy-hop --model gpt-4o-mini
 
 The container runs the environment with tools/scenarios.
 This script connects to it and runs agent evaluations.
 """
+
+import argparse
 import asyncio
 import os
 
 import hud
 from hud import Environment
 from hud.agents import OpenAIChatAgent
-from hud.settings import settings
-from openai import AsyncOpenAI
 
-# Use HUD inference gateway - see all models at https://hud.ai/models
-client = AsyncOpenAI(base_url="https://inference.hud.ai", api_key=settings.api_key)
+from tasks import ALL_TASKS
 
 # Connect to running container (scenarios/tools are defined there)
 DEV_URL = os.getenv("HUD_DEV_URL", "http://localhost:8765/mcp")
 
-env = Environment("remote-browser")
-env.connect_url(DEV_URL)
+dev_env = Environment("remote-browser")
+dev_env.connect_url(DEV_URL)
 
 
-async def test_tools_standalone():
-    """Test environment tools directly."""
-    print("=== Test 1: Standalone Tools ===")
-
-    async with env:
-        print(f"Tools: {[t.name for t in env.as_tools()]}")
-
-
-async def test_answer_scenario():
-    """Test answer scenario with manual OpenAI calls."""
-    print("\n=== Test 2: Answer Scenario (Manual Agent Loop) ===")
-
-    task = env("answer",
-        url="https://en.wikipedia.org/wiki/Python_(programming_language)",
-        prompt="What year was Python first released? Return just the year.",
-        expected="1991",
-        compare_mode="contains"
-    )
-
-    async with hud.eval(task) as ctx:
-        messages = [{"role": "user", "content": ctx.prompt}]
-
-        while True:
-            response = await client.chat.completions.create(
-                model="gpt-4o",  # https://hud.ai/models
-                messages=messages,
-                tools=ctx.as_openai_chat_tools(),
-            )
-            msg = response.choices[0].message
-
-            if not msg.tool_calls:
-                break
-
-            messages.append(msg)
-            for tc in msg.tool_calls:
-                result = await ctx.call_tool(tc)
-                messages.append(result)
+def list_tasks():
+    """Print all available tasks with their scenarios."""
+    print(f"Available tasks ({len(ALL_TASKS)}):")
+    print("-" * 60)
+    for slug, task in ALL_TASKS.items():
+        print(f"  {slug:<28} [{task.scenario}]")
 
 
-async def test_wiki_speedrun():
-    """Test wiki speedrun scenario with OpenAIChatAgent."""
-    print("\n=== Test 3: Wiki Speedrun Scenario ===")
+async def run_task(slug: str, model: str, max_steps: int):
+    """Run a single task against the dev container."""
+    task = ALL_TASKS[slug]
+    # Rebind to dev container environment
+    local_task = dev_env(task.scenario, **(task.args or {}))
 
-    task = env("wiki-speedrun",
-        start_page="Python_(programming_language)",
-        target_page="Guido_van_Rossum",
-        max_clicks=3
-    )
+    print(f"\n=== {slug} (scenario: {task.scenario}, model: {model}) ===")
 
-    async with hud.eval(task) as ctx:
-        agent = OpenAIChatAgent.create(model="gpt-4o")  # https://hud.ai/models
-        await agent.run(ctx)
+    async with hud.eval(local_task, name=slug) as ctx:
+        agent = OpenAIChatAgent.create(model=model)
+        await agent.run(ctx, max_steps=max_steps)
+        print(f"  Reward: {ctx.reward}")
 
 
 async def main():
-    print("Remote Browser Environment - Local Test")
-    print("=" * 50)
-    print(f"Container URL: {DEV_URL}")
-    print("Make sure the container is running:")
-    print("  hud dev -w scenarios -w evaluate -w setup --port 8765")
-    print("=" * 50)
-    print()
+    parser = argparse.ArgumentParser(description="Local test for remote browser tasks")
+    parser.add_argument("--task", type=str, help="Run a specific task by slug")
+    parser.add_argument(
+        "--list", action="store_true", help="List available tasks and exit"
+    )
+    parser.add_argument(
+        "--model", type=str, default="gpt-4o", help="Model to use (default: gpt-4o)"
+    )
+    parser.add_argument(
+        "--max-steps", type=int, default=10, help="Max agent steps (default: 10)"
+    )
+    args = parser.parse_args()
 
-    await test_tools_standalone()
-    # Uncomment to run scenarios:
-    # await test_answer_scenario()
-    # await test_wiki_speedrun()
+    if args.list:
+        list_tasks()
+        return
+
+    if args.task:
+        if args.task not in ALL_TASKS:
+            print(f"Unknown task: {args.task}")
+            list_tasks()
+            return
+        await run_task(args.task, args.model, args.max_steps)
+    else:
+        print(f"Container URL: {DEV_URL}")
+        print("Make sure the container is running:")
+        print("  hud dev -w scenarios -w evaluate -w setup --port 8765")
+        print()
+        # Default: run all tasks
+        for slug in ALL_TASKS:
+            try:
+                await run_task(slug, args.model, args.max_steps)
+            except Exception as e:
+                print(f"  ERROR: {e}")
 
 
 if __name__ == "__main__":

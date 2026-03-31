@@ -60,8 +60,8 @@ def compare_answers(actual: Any, expected: Any, mode: str = "exact") -> float:
     return 0.0
 
 
-def register_general_scenarios(env: Any) -> None:
-    """Register general browser scenarios with the environment."""
+def register_general_scenarios(env: Any) -> dict:
+    """Register general browser scenarios and return their handles."""
 
     @env.scenario("answer")
     async def answer(
@@ -313,3 +313,9 @@ Click on article links to navigate. The goal is to reach: {target_page.replace('
             logger.info("Wiki speedrun: Did not reach target. Current URL: %s", current_url)
 
         yield reward
+
+    return {
+        "answer": answer,
+        "fill_record": fill_record,
+        "wiki_speedrun": wiki_speedrun,
+    }

@@ -1,8 +1,8 @@
 """Google Sheets scenarios - complete tasks in spreadsheets."""
+
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-from setup.navigate import navigate_to_url
 from setup.sheets import sheets_from_xlsx, sheets_from_bytes, navigate_to_google_sheet
 from evaluate.sheets_cell_values import sheets_cell_values
 from evaluate.sheet_contains import sheet_contains
@@ -10,8 +10,8 @@ from evaluate.sheet_contains import sheet_contains
 logger = logging.getLogger(__name__)
 
 
-def register_sheets_scenarios(env: Any) -> None:
-    """Register Google Sheets scenarios with the environment."""
+def register_sheets_scenarios(env: Any) -> dict:
+    """Register Google Sheets scenarios and return their handles."""
 
     @env.scenario("sheet-from-file")
     async def sheet_from_file(
@@ -23,7 +23,7 @@ def register_sheets_scenarios(env: Any) -> None:
         expected_text: Optional[Union[str, List[str]]] = None,
     ) -> Any:
         """Create a sheet from an Excel file and complete a task.
-        
+
         Args:
             prompt: The task instruction for the agent
             file_url: URL of Excel file to convert (use this OR file_bytes)
@@ -33,6 +33,7 @@ def register_sheets_scenarios(env: Any) -> None:
             expected_text: Optional text that should appear in the sheet
         """
         from env import persistent_ctx
+
         playwright_tool = persistent_ctx.playwright_tool if persistent_ctx else None
 
         if not playwright_tool:
@@ -70,8 +71,12 @@ def register_sheets_scenarios(env: Any) -> None:
             reward = min(reward, cell_result["reward"])
 
         if expected_text:
-            text_list = [expected_text] if isinstance(expected_text, str) else expected_text
+            text_list = (
+                [expected_text] if isinstance(expected_text, str) else expected_text
+            )
             text_result = await sheet_contains(playwright_tool, text_list)
             reward = min(reward, text_result["reward"])
 
         yield reward
+
+    return {"sheet_from_file": sheet_from_file}
