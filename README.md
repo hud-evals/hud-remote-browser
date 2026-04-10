@@ -118,19 +118,27 @@ async with hud.eval(tasks, variants=variants, group=2) as ctx:
 
 ## Configuration
 
-### Provider API Keys
+### Provider API Keys (Build Args)
 
-Set the API key for your browser provider. The environment auto-detects which provider to use:
+Pass **at least one** provider API key when building. The environment auto-detects which provider to use:
 
-| Provider | API Key Variable |
-|----------|------------------|
+| Provider | Build Arg |
+|----------|-----------|
 | anchorbrowser | `ANCHOR_API_KEY` |
-| browserbase | `BROWSERBASE_API_KEY` (also needs `BROWSERBASE_PROJECT_ID`) |
+| browserbase | `BROWSERBASE_API_KEY` (also pass `BROWSERBASE_PROJECT_ID`) |
 | hyperbrowser | `HYPERBROWSER_API_KEY` |
 | steel | `STEEL_API_KEY` |
 | kernel | `KERNEL_API_KEY` |
 
-**Auto-detection:** Provider is detected from API keys with priority: Anchor → Steel → BrowserBase → HyperBrowser → Kernel.  
+```bash
+# Example: using Anchor
+hud build --build-arg ANCHOR_API_KEY=your-key
+
+# Example: using BrowserBase
+hud build --build-arg BROWSERBASE_API_KEY=your-key --build-arg BROWSERBASE_PROJECT_ID=your-project
+```
+
+**Auto-detection:** Provider is detected from API keys with priority: Anchor → Steel → BrowserBase → HyperBrowser → Kernel.
 **Override:** Set `BROWSER_PROVIDER` explicitly to override auto-detection.
 
 ### Google Sheets (Optional)
@@ -153,8 +161,8 @@ GCP_CREDENTIALS_FILE='/path/to/service-account.json'
 Use `hud dev` with hot-reload for fast iteration:
 
 ```bash
-# 1. Build the Docker image (first time only)
-hud build
+# 1. Build the Docker image (first time only, pass your provider API key)
+hud build --build-arg ANCHOR_API_KEY=your-key
 
 # 2. Start with hot-reload on scenarios/evaluate
 hud dev -w scenarios -w evaluate -w setup --port 8765
