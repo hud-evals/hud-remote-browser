@@ -132,10 +132,10 @@ Pass **at least one** provider API key when building. The environment auto-detec
 
 ```bash
 # Example: using Anchor
-hud build --build-arg ANCHOR_API_KEY=your-key
+hud build . --build-arg ANCHOR_API_KEY=your-key
 
 # Example: using BrowserBase
-hud build --build-arg BROWSERBASE_API_KEY=your-key --build-arg BROWSERBASE_PROJECT_ID=your-project
+hud build . --build-arg BROWSERBASE_API_KEY=your-key --build-arg BROWSERBASE_PROJECT_ID=your-project
 ```
 
 **Auto-detection:** Provider is detected from API keys with priority: Anchor → Steel → BrowserBase → HyperBrowser → Kernel.
@@ -162,7 +162,7 @@ Use `hud dev` with hot-reload for fast iteration:
 
 ```bash
 # 1. Build the Docker image (first time only, pass your provider API key)
-hud build --build-arg ANCHOR_API_KEY=your-key
+hud build . --build-arg ANCHOR_API_KEY=your-key
 
 # 2. Start with hot-reload on scenarios/evaluate
 hud dev -w scenarios -w evaluate -w setup --port 8765
