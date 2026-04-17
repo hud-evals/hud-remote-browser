@@ -1,16 +1,21 @@
 # Use our HUD base browser image with Playwright and uv pre-installed
 FROM hudevals/hud-browser-base
 
-# Validate required build arguments early (fail fast)
+# Validate required build secrets early (fail fast)
 # At least one provider API key is required
-ARG ANCHOR_API_KEY
-ARG STEEL_API_KEY
-ARG BROWSERBASE_API_KEY
-ARG BROWSERBASE_PROJECT_ID
-ARG HYPERBROWSER_API_KEY
-ARG KERNEL_API_KEY
-
-RUN test -n "$ANCHOR_API_KEY" -o -n "$STEEL_API_KEY" -o -n "$BROWSERBASE_API_KEY" -o -n "$HYPERBROWSER_API_KEY" -o -n "$KERNEL_API_KEY" || \
+# Secrets are passed via: --secret id=KEY_NAME,env=KEY_NAME
+RUN --mount=type=secret,id=ANCHOR_API_KEY \
+    --mount=type=secret,id=STEEL_API_KEY \
+    --mount=type=secret,id=BROWSERBASE_API_KEY \
+    --mount=type=secret,id=BROWSERBASE_PROJECT_ID \
+    --mount=type=secret,id=HYPERBROWSER_API_KEY \
+    --mount=type=secret,id=KERNEL_API_KEY \
+    ANCHOR=$(cat /run/secrets/ANCHOR_API_KEY 2>/dev/null) && \
+    STEEL=$(cat /run/secrets/STEEL_API_KEY 2>/dev/null) && \
+    BB=$(cat /run/secrets/BROWSERBASE_API_KEY 2>/dev/null) && \
+    HYPER=$(cat /run/secrets/HYPERBROWSER_API_KEY 2>/dev/null) && \
+    KERNEL=$(cat /run/secrets/KERNEL_API_KEY 2>/dev/null) && \
+    test -n "$ANCHOR" -o -n "$STEEL" -o -n "$BB" -o -n "$HYPER" -o -n "$KERNEL" || \
     (echo "ERROR: At least one browser provider API key required (ANCHOR_API_KEY, STEEL_API_KEY, BROWSERBASE_API_KEY, HYPERBROWSER_API_KEY, or KERNEL_API_KEY)" && exit 1)
 
 WORKDIR /app
@@ -40,14 +45,6 @@ ENV PATH=/app/.venv/bin:$PATH
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
-
-# Set provider API keys from build args
-ENV ANCHOR_API_KEY=$ANCHOR_API_KEY
-ENV STEEL_API_KEY=$STEEL_API_KEY
-ENV BROWSERBASE_API_KEY=$BROWSERBASE_API_KEY
-ENV BROWSERBASE_PROJECT_ID=$BROWSERBASE_PROJECT_ID
-ENV HYPERBROWSER_API_KEY=$HYPERBROWSER_API_KEY
-ENV KERNEL_API_KEY=$KERNEL_API_KEY
 
 # Run: context server in background, then environment
 CMD ["sh", "-c", "\
