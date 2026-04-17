@@ -10,11 +10,11 @@ RUN --mount=type=secret,id=ANCHOR_API_KEY \
     --mount=type=secret,id=BROWSERBASE_PROJECT_ID \
     --mount=type=secret,id=HYPERBROWSER_API_KEY \
     --mount=type=secret,id=KERNEL_API_KEY \
-    ANCHOR=$(cat /run/secrets/ANCHOR_API_KEY 2>/dev/null) && \
-    STEEL=$(cat /run/secrets/STEEL_API_KEY 2>/dev/null) && \
-    BB=$(cat /run/secrets/BROWSERBASE_API_KEY 2>/dev/null) && \
-    HYPER=$(cat /run/secrets/HYPERBROWSER_API_KEY 2>/dev/null) && \
-    KERNEL=$(cat /run/secrets/KERNEL_API_KEY 2>/dev/null) && \
+    ANCHOR=$(cat /run/secrets/ANCHOR_API_KEY 2>/dev/null || true) ; \
+    STEEL=$(cat /run/secrets/STEEL_API_KEY 2>/dev/null || true) ; \
+    BB=$(cat /run/secrets/BROWSERBASE_API_KEY 2>/dev/null || true) ; \
+    HYPER=$(cat /run/secrets/HYPERBROWSER_API_KEY 2>/dev/null || true) ; \
+    KERNEL=$(cat /run/secrets/KERNEL_API_KEY 2>/dev/null || true) ; \
     test -n "$ANCHOR" -o -n "$STEEL" -o -n "$BB" -o -n "$HYPER" -o -n "$KERNEL" || \
     (echo "ERROR: At least one browser provider API key required (ANCHOR_API_KEY, STEEL_API_KEY, BROWSERBASE_API_KEY, HYPERBROWSER_API_KEY, or KERNEL_API_KEY)" && exit 1)
 

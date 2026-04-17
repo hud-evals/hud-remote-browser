@@ -115,7 +115,10 @@ async def initialize_environment(ctx: Any) -> None:
                     logger.warning("Context server not ready (attempt %d/%d): %s", attempt + 1, max_retries, e)
                     await asyncio.sleep(retry_delay)
                 else:
-                    raise
+                    # Context server not available (e.g. during build-time analysis).
+                    # Return gracefully so tool/scenario discovery can still proceed.
+                    logger.warning("Context server not available; skipping browser init")
+                    return
 
         # Check if we need to initialize a new browser session
         if not persistent_ctx.get_is_initialized():
