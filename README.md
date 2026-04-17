@@ -6,7 +6,7 @@ A cloud browser environment for web agent evaluation. Agents interact with real 
 
 ```bash
 uv sync                                                        # install dependencies
-hud deploy . --secret id=YOUR_API_KEY,env=YOUR_API_KEY         # build and deploy to HUD platform
+hud deploy . --build-arg YOUR_API_KEY=$YOUR_API_KEY            # build and deploy to HUD platform
 hud sync tasks <name>                                          # upload task definitions
 ```
 
@@ -21,7 +21,7 @@ hud sync tasks <name>                                          # upload task def
 
 ## Configuration
 
-A cloud browser provider API key is required as a build secret. Set at least one of:
+A cloud browser provider API key is required as a build argument. Set at least one of:
 
 - `ANCHOR_API_KEY`
 - `STEEL_API_KEY`
