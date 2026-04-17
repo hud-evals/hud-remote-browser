@@ -8,6 +8,7 @@ This demonstrates:
 import asyncio
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime
 from typing import Any, Optional, TypedDict
@@ -69,6 +70,21 @@ async def get_telemetry_resource() -> Telemetry:
         cdp_url=None,
         instance_id=None,
     )
+
+
+@env.tool()
+async def hud_validate() -> str:
+    """Run the test suite to validate the environment is working correctly."""
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
+        capture_output=True,
+        text=True,
+        cwd="/app",
+    )
+    output = result.stdout + result.stderr
+    if result.returncode != 0:
+        raise RuntimeError(output or f"pytest exited with code {result.returncode}")
+    return output
 
 
 @env.initialize
