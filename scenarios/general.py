@@ -202,18 +202,28 @@ Use the browser tools to locate and fill the required fields."""
         for selector, expected_value in verify.items():
             try:
                 element = page.locator(selector).first
-                actual_value = await element.input_value()
-                
-                # Fallback to text content if input_value is empty
-                if not actual_value:
-                    actual_value = await element.text_content() or ""
-                
-                if str(actual_value).strip() == str(expected_value).strip():
-                    matches += 1
-                    logger.info("Field %s: MATCH '%s'", selector, expected_value)
+
+                # Special handling for checkboxes and radio buttons
+                if str(expected_value).strip().lower() == "checked":
+                    is_checked = await element.is_checked()
+                    if is_checked:
+                        matches += 1
+                        logger.info("Field %s: CHECKED", selector)
+                    else:
+                        logger.info("Field %s: NOT CHECKED (expected checked)", selector)
                 else:
-                    logger.info("Field %s: MISMATCH expected='%s' got='%s'",
-                               selector, expected_value, actual_value)
+                    actual_value = await element.input_value()
+
+                    # Fallback to text content if input_value is empty
+                    if not actual_value:
+                        actual_value = await element.text_content() or ""
+
+                    if str(actual_value).strip() == str(expected_value).strip():
+                        matches += 1
+                        logger.info("Field %s: MATCH '%s'", selector, expected_value)
+                    else:
+                        logger.info("Field %s: MISMATCH expected='%s' got='%s'",
+                                   selector, expected_value, actual_value)
             except Exception as e:
                 logger.warning("Could not check selector %s: %s", selector, e)
 
