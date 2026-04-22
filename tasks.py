@@ -55,7 +55,7 @@ numeric_extraction = answer.task(
         "What is the approximate equatorial radius of Earth in kilometers? "
         "Return just the number (e.g. 1234)."
     ),
-    expected="6371",
+    expected="6378",
     compare_mode="numeric",
 )
 numeric_extraction.slug = "numeric-extraction"
@@ -79,6 +79,8 @@ httpbin_order_form = fill_record.task(
         "input[name='custname']": "Jane Smith",
         "input[name='custtel']": "555-9876",
         "input[name='custemail']": "jane@example.com",
+        "input[type='radio'][name='size'][value='medium']": "checked",
+        "input[type='checkbox'][name='topping'][value='bacon']": "checked",
     },
 )
 httpbin_order_form.slug = "httpbin-order-form"
@@ -104,6 +106,9 @@ httpbin_complex_form = fill_record.task(
         "input[name='custname']": "John Doe",
         "input[name='custtel']": "212-555-0100",
         "input[name='custemail']": "john@company.com",
+        "input[type='radio'][name='size'][value='large']": "checked",
+        "input[type='checkbox'][name='topping'][value='mushroom']": "checked",
+        "input[type='checkbox'][name='topping'][value='onion']": "checked",
         "input[name='delivery']": "19:30",
         "textarea[name='comments']": "Ring the bell twice.",
     },
