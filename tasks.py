@@ -53,7 +53,7 @@ numeric_extraction = answer.task(
     url="https://en.wikipedia.org/wiki/Earth",
     prompt=(
         "What is the approximate equatorial radius of Earth in kilometers? "
-        "Return just the number (e.g. 6371)."
+        "Return just the number (e.g. 1234)."
     ),
     expected="6371",
     compare_mode="numeric",
