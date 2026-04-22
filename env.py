@@ -260,7 +260,6 @@ PROVIDER_PRIORITY = [
     ("STEEL_API_KEY", "steel"),
     ("BROWSERBASE_API_KEY", "browserbase"),
     ("HYPERBROWSER_API_KEY", "hyperbrowser"),
-    ("KERNEL_API_KEY", "kernel"),
 ]
 
 
@@ -295,9 +294,7 @@ def _get_provider_config(provider_name: str) -> dict:
         config["project_id"] = os.getenv("BROWSERBASE_PROJECT_ID")
     elif provider_name == "hyperbrowser":
         config["api_key"] = os.getenv("HYPERBROWSER_API_KEY")
-    elif provider_name == "kernel":
-        config["api_key"] = os.getenv("KERNEL_API_KEY")
-    
+
     return config
 
 

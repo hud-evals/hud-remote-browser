@@ -1,6 +1,6 @@
 # Remote Browser Environment
 
-A cloud browser environment for web agent evaluation. Agents interact with real websites through Playwright and computer-use tools, powered by a cloud browser provider (AnchorBrowser, Steel, BrowserBase, HyperBrowser, or Kernel).
+A cloud browser environment for web agent evaluation. Agents interact with real websites through Playwright and computer-use tools, powered by a cloud browser provider (AnchorBrowser, Steel, BrowserBase, or HyperBrowser).
 
 ## Setup
 
@@ -39,7 +39,6 @@ A cloud browser provider API key is required as a build argument. Set at least o
 - `STEEL_API_KEY`
 - `BROWSERBASE_API_KEY` (also requires `BROWSERBASE_PROJECT_ID`)
 - `HYPERBROWSER_API_KEY`
-- `KERNEL_API_KEY`
 
 The `sheet-from-file` scenario additionally requires GCP credentials via one of:
 
