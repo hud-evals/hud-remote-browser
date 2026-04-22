@@ -30,7 +30,7 @@ wiki_python_year.slug = "wiki-python-year"
 json_extract_title = answer.task(
     url="https://httpbin.org/json",
     prompt="Extract the 'title' field from the slideshow object. Return just the title text.",
-    expected="Sample Slideshow",
+    expected="Sample Slide Show",
     compare_mode="exact",
 )
 json_extract_title.slug = "json-extract-title"
