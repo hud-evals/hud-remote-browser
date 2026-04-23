@@ -97,6 +97,16 @@ async def initialize_environment(ctx: Any) -> None:
     from providers import get_provider
 
     try:
+        # Detect provider from API keys or explicit setting
+        provider_name = _detect_provider()
+        if not provider_name:
+            api_keys = [k for k, _ in PROVIDER_PRIORITY]
+            logger.warning(
+                "No browser provider API key found. Set one of: %s. "
+                "Skipping browser initialization.", ", ".join(api_keys)
+            )
+            return
+
         logger.info("Connecting to persistent context...")
 
         # Connect to persistent context server
@@ -120,15 +130,12 @@ async def initialize_environment(ctx: Any) -> None:
         # Check if we need to initialize a new browser session
         if not persistent_ctx.get_is_initialized():
             logger.info("Initializing new browser session...")
-
-            # Detect provider from API keys or explicit setting
-            provider_name = _detect_provider()
             logger.info("Using browser provider: %s", provider_name)
 
             # Initialize provider
             provider_class = get_provider(provider_name)
             provider_config = _get_provider_config(provider_name)
-            
+
             persistent_ctx.set_provider_config(provider_config)
             browser_provider = provider_class(provider_config)
             persistent_ctx.set_browser_provider(browser_provider)
@@ -173,7 +180,7 @@ async def initialize_environment(ctx: Any) -> None:
             actual_width, actual_height = actual_viewport
             requested_width = int(os.getenv("DISPLAY_WIDTH", "1280"))
             requested_height = int(os.getenv("DISPLAY_HEIGHT", "720"))
-            
+
             if (actual_width, actual_height) != (requested_width, requested_height):
                 logger.warning(
                     "Viewport mismatch! Requested %sx%s, actual %sx%s. Updating DISPLAY_* env vars.",
@@ -181,7 +188,7 @@ async def initialize_environment(ctx: Any) -> None:
                 )
                 os.environ["DISPLAY_WIDTH"] = str(actual_width)
                 os.environ["DISPLAY_HEIGHT"] = str(actual_height)
-                
+
                 from hud.tools.computer.settings import computer_settings
                 computer_settings.DISPLAY_WIDTH = actual_width
                 computer_settings.DISPLAY_HEIGHT = actual_height
@@ -195,7 +202,7 @@ async def initialize_environment(ctx: Any) -> None:
 
         # Register tools
         env.add_tool(playwright_tool)
-        
+
         browser_executor = BrowserExecutor(playwright_tool)
         register_computer_tools(env, browser_executor)
         logger.info("Tools registered")
@@ -263,26 +270,25 @@ PROVIDER_PRIORITY = [
 ]
 
 
-def _detect_provider() -> str:
+def _detect_provider() -> Optional[str]:
     """Detect provider from BROWSER_PROVIDER or auto-detect from API keys with priority."""
     explicit = os.getenv("BROWSER_PROVIDER", "").lower()
     if explicit:
         return explicit
-    
+
     # Use priority order: first API key found wins
     for api_key_var, provider_name in PROVIDER_PRIORITY:
         if os.getenv(api_key_var):
             logger.info("Auto-detected provider: %s (from %s)", provider_name, api_key_var)
             return provider_name
-    
-    api_keys = [k for k, _ in PROVIDER_PRIORITY]
-    raise ValueError(f"No API key set. Provide one of: {', '.join(api_keys)}")
+
+    return None
 
 
 def _get_provider_config(provider_name: str) -> dict:
     """Get provider-specific configuration from environment."""
     config = {}
-    
+
     if provider_name == "anchorbrowser":
         config["api_key"] = os.getenv("ANCHOR_API_KEY")
         config["base_url"] = os.getenv("ANCHOR_BASE_URL", "https://api.anchorbrowser.io")
@@ -294,6 +300,13 @@ def _get_provider_config(provider_name: str) -> dict:
         config["project_id"] = os.getenv("BROWSERBASE_PROJECT_ID")
     elif provider_name == "hyperbrowser":
         config["api_key"] = os.getenv("HYPERBROWSER_API_KEY")
+
+    if not config.get("api_key"):
+        key_var = next((k for k, v in PROVIDER_PRIORITY if v == provider_name), None)
+        raise ValueError(
+            f"Provider '{provider_name}' selected but no API key found. "
+            f"Set the {key_var} environment variable."
+        )
 
     return config
 

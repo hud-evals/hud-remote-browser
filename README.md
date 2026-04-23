@@ -13,7 +13,7 @@ hud set HUD_API_KEY=your-key-here   # CLI auth, get one at hud.ai/project/api-ke
 ## Deploy & Run
 
 ```bash
-hud deploy . --build-arg YOUR_API_KEY=$YOUR_API_KEY   # deploy the environment (once)
+hud deploy .                                          # deploy the environment (once)
 hud sync tasks <taskset-name>                         # push tasks to a taskset (fast, re-run on every task change)
 hud eval <taskset-name> --remote --full
 ```
@@ -33,7 +33,7 @@ See [Deploy & Go Remote](https://docs.hud.ai/building/running-at-scale) for depl
 
 ## Configuration
 
-A cloud browser provider API key is required as a build argument. Set at least one of:
+A cloud browser provider API key is required as an environment variable. Set at least one of:
 
 - `ANCHOR_API_KEY`
 - `STEEL_API_KEY`
