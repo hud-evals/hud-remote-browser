@@ -97,16 +97,6 @@ async def initialize_environment(ctx: Any) -> None:
     from providers import get_provider
 
     try:
-        # Detect provider from API keys or explicit setting
-        provider_name = _detect_provider()
-        if not provider_name:
-            api_keys = [k for k, _ in PROVIDER_PRIORITY]
-            logger.warning(
-                "No browser provider API key found. Set one of: %s. "
-                "Skipping browser initialization.", ", ".join(api_keys)
-            )
-            return
-
         logger.info("Connecting to persistent context...")
 
         # Connect to persistent context server
@@ -130,6 +120,12 @@ async def initialize_environment(ctx: Any) -> None:
         # Check if we need to initialize a new browser session
         if not persistent_ctx.get_is_initialized():
             logger.info("Initializing new browser session...")
+
+            # Detect provider from API keys or explicit setting
+            provider_name = _detect_provider()
+            if not provider_name:
+                api_keys = [k for k, _ in PROVIDER_PRIORITY]
+                raise ValueError(f"No API key set. Provide one of: {', '.join(api_keys)}")
             logger.info("Using browser provider: %s", provider_name)
 
             # Initialize provider
@@ -223,7 +219,6 @@ async def initialize_environment(ctx: Any) -> None:
         logger.error("Initialization failed: %s", e)
         import traceback
         logger.error("Traceback: %s", traceback.format_exc())
-        raise
 
 
 async def _get_actual_viewport(playwright_tool: Any) -> tuple[int, int] | None:
