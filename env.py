@@ -125,7 +125,11 @@ async def initialize_environment(ctx: Any) -> None:
             provider_name = _detect_provider()
             if not provider_name:
                 api_keys = [k for k, _ in PROVIDER_PRIORITY]
-                raise ValueError(f"No API key set. Provide one of: {', '.join(api_keys)}")
+                logger.warning(
+                    "No browser provider API key found. Set one of: %s. "
+                    "Browser will not be available.", ", ".join(api_keys)
+                )
+                return
             logger.info("Using browser provider: %s", provider_name)
 
             # Initialize provider

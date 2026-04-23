@@ -42,11 +42,14 @@ def compare_answers(actual: Any, expected: Any, mode: str = "exact") -> float:
     
     elif mode == "numeric":
         try:
-            # Extract numbers from strings
-            actual_nums = re.findall(r'-?\d+\.?\d*', actual_str)
-            expected_nums = re.findall(r'-?\d+\.?\d*', expected_str)
+            # Extract numbers from strings (strip commas/spaces used as thousands separators)
+            clean_actual = re.sub(r'(?<=\d)[, ](?=\d)', '', actual_str)
+            clean_expected = re.sub(r'(?<=\d)[, ](?=\d)', '', expected_str)
+            actual_nums = re.findall(r'-?\d+\.?\d*', clean_actual)
+            expected_nums = re.findall(r'-?\d+\.?\d*', clean_expected)
             if actual_nums and expected_nums:
-                return 1.0 if float(actual_nums[0]) == float(expected_nums[0]) else 0.0
+                target = float(expected_nums[0])
+                return 1.0 if float(actual_nums[-1]) == target else 0.0
             return 0.0
         except (ValueError, IndexError):
             return 0.0
