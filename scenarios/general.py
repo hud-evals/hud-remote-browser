@@ -42,11 +42,14 @@ def compare_answers(actual: Any, expected: Any, mode: str = "exact") -> float:
     
     elif mode == "numeric":
         try:
-            # Extract numbers from strings
-            actual_nums = re.findall(r'-?\d+\.?\d*', actual_str)
-            expected_nums = re.findall(r'-?\d+\.?\d*', expected_str)
+            # Extract numbers from strings (strip commas/spaces used as thousands separators)
+            clean_actual = re.sub(r'(?<=\d)[, ](?=\d)', '', actual_str)
+            clean_expected = re.sub(r'(?<=\d)[, ](?=\d)', '', expected_str)
+            actual_nums = re.findall(r'-?\d+\.?\d*', clean_actual)
+            expected_nums = re.findall(r'-?\d+\.?\d*', clean_expected)
             if actual_nums and expected_nums:
-                return 1.0 if float(actual_nums[0]) == float(expected_nums[0]) else 0.0
+                target = float(expected_nums[0])
+                return 1.0 if float(actual_nums[-1]) == target else 0.0
             return 0.0
         except (ValueError, IndexError):
             return 0.0
@@ -60,10 +63,10 @@ def compare_answers(actual: Any, expected: Any, mode: str = "exact") -> float:
     return 0.0
 
 
-def register_general_scenarios(env: Any) -> None:
-    """Register general browser scenarios with the environment."""
+def register_general_scenarios(env: Any) -> dict:
+    """Register general browser scenarios and return their handles."""
 
-    @env.scenario("answer")
+    @env.scenario("answer", exclude_tools=["hud_validate"])
     async def answer(
         url: str,
         prompt: str,
@@ -126,7 +129,7 @@ When you have found the answer, respond with your final answer clearly."""
 
         yield reward
 
-    @env.scenario("fill-record")
+    @env.scenario("fill-record", exclude_tools=["hud_validate"])
     async def fill_record(
         url: str,
         prompt: str,
@@ -202,18 +205,28 @@ Use the browser tools to locate and fill the required fields."""
         for selector, expected_value in verify.items():
             try:
                 element = page.locator(selector).first
-                actual_value = await element.input_value()
-                
-                # Fallback to text content if input_value is empty
-                if not actual_value:
-                    actual_value = await element.text_content() or ""
-                
-                if str(actual_value).strip() == str(expected_value).strip():
-                    matches += 1
-                    logger.info("Field %s: MATCH '%s'", selector, expected_value)
+
+                # Special handling for checkboxes and radio buttons
+                if str(expected_value).strip().lower() == "checked":
+                    is_checked = await element.is_checked()
+                    if is_checked:
+                        matches += 1
+                        logger.info("Field %s: CHECKED", selector)
+                    else:
+                        logger.info("Field %s: NOT CHECKED (expected checked)", selector)
                 else:
-                    logger.info("Field %s: MISMATCH expected='%s' got='%s'",
-                               selector, expected_value, actual_value)
+                    actual_value = await element.input_value()
+
+                    # Fallback to text content if input_value is empty
+                    if not actual_value:
+                        actual_value = await element.text_content() or ""
+
+                    if str(actual_value).strip() == str(expected_value).strip():
+                        matches += 1
+                        logger.info("Field %s: MATCH '%s'", selector, expected_value)
+                    else:
+                        logger.info("Field %s: MISMATCH expected='%s' got='%s'",
+                                   selector, expected_value, actual_value)
             except Exception as e:
                 logger.warning("Could not check selector %s: %s", selector, e)
 
@@ -222,7 +235,7 @@ Use the browser tools to locate and fill the required fields."""
         
         yield reward
 
-    @env.scenario("wiki-speedrun")
+    @env.scenario("wiki-speedrun", exclude_tools=["hud_validate"])
     async def wiki_speedrun(
         start_page: str,
         target_page: str,
@@ -313,3 +326,9 @@ Click on article links to navigate. The goal is to reach: {target_page.replace('
             logger.info("Wiki speedrun: Did not reach target. Current URL: %s", current_url)
 
         yield reward
+
+    return {
+        "answer": answer,
+        "fill_record": fill_record,
+        "wiki_speedrun": wiki_speedrun,
+    }

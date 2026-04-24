@@ -4,8 +4,6 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Literal
 
-from pydantic import Field
-
 from hud.server import MCPRouter
 from hud.tools.playwright import PlaywrightTool
 from hud.tools.executors.base import BaseExecutor
@@ -65,10 +63,8 @@ class PlaywrightToolWithMemory(PlaywrightTool):
 
     async def navigate(
         self,
-        url: str = Field(..., description="URL to navigate to"),
-        wait_for_load_state: Literal["load", "domcontentloaded", "networkidle"] = Field(
-            "networkidle", description="Wait condition after navigation"
-        ),
+        url: str = "",
+        wait_for_load_state: Literal["commit", "domcontentloaded", "load", "networkidle"] = "networkidle",
     ) -> dict:
         self._record_action("navigate", {"url": url, "wait_for_load_state": wait_for_load_state})
         result = await super().navigate(url, wait_for_load_state)
@@ -86,10 +82,10 @@ class PlaywrightToolWithMemory(PlaywrightTool):
 
     async def click(
         self,
-        selector: str = Field(..., description="CSS selector to click"),
-        button: Literal["left", "right", "middle"] = Field("left", description="Mouse button"),
-        count: int = Field(1, description="Number of clicks"),
-        wait_for_navigation: bool = Field(False, description="Wait for navigation after click"),
+        selector: str = "",
+        button: Literal["left", "right", "middle"] = "left",
+        count: int = 1,
+        wait_for_navigation: bool = False,
     ) -> dict:
         self.selector_history.append(selector)
         self._record_action("click", {
