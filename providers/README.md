@@ -47,10 +47,6 @@ This directory contains implementations for various cloud browser providers that
 - **API Key**: `steel_api_key` header or `STEEL_API_KEY` env variable
 - **Documentation**: https://docs.steel.dev/api-reference
 
-### 5. **Kernel** ❌ (Not yet available)
-- **Status**: API not yet available for browser sessions
-- **Documentation**: N/A
-
 ## Provider Lifecycle
 
 Each provider follows a similar lifecycle pattern:

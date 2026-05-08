@@ -12,6 +12,7 @@ COPY providers/ ./providers/
 COPY setup/ ./setup/
 COPY evaluate/ ./evaluate/
 COPY scenarios/ ./scenarios/
+COPY tests/ ./tests/
 
 RUN uv sync
 
@@ -27,11 +28,6 @@ ENV PATH=/app/.venv/bin:$PATH
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app
-
-# Note: Set at runtime:
-# - Provider API keys: ANCHOR_API_KEY, STEEL_API_KEY, etc.
-# - Provider auto-detected from API key (priority: Anchor → Steel → BrowserBase → HyperBrowser)
-# - Optional: BROWSER_PROVIDER to override auto-detection
 
 # Run: context server in background, then environment
 CMD ["sh", "-c", "\
