@@ -1,42 +1,42 @@
-"""Task definitions for hud-remote-browser.
+"""Tasks for the remote-browser environment.
 
-Each task is created via scenario.task() and registered in ALL_TASKS for
-discovery by local_test.py and remote_test.py.
-
-Usage:
-    python local_test.py --list
-    python local_test.py --task wiki-python-year
-    python local_test.py --task wiki-easy-hop --model gpt-4o-mini
+`hud eval tasks.py` and `hud sync tasks` collect the public `tasks` list below: the general
+browsing tasks plus the 50 SheetBench tasks minted from the vendored `sheetbench.json`
+(the hud-evals/SheetBench-50 dataset re-cut against the v6 `sheet-from-file` template).
 """
 
-from env import env  # noqa: F401 — triggers scenario registration
+import json
+from pathlib import Path
 
-from scenarios import answer, fill_record, wiki_speedrun
+from env import (  # noqa: F401  (re-export env for `hud eval tasks.py`)
+    answer,
+    env,
+    fill_record,
+    sheet_from_file,
+    wiki_speedrun,
+)
 
 # =============================================================================
-# ANSWER — navigate and extract information (binary/fuzzy scoring)
+# ANSWER — navigate and extract information (binary scoring)
 # =============================================================================
 
-# Easy: single fact extraction, "contains" match
-wiki_python_year = answer.task(
+_wiki_python_year = answer(
     url="https://en.wikipedia.org/wiki/Python_(programming_language)",
     prompt="What year was Python first released? Return just the year as a number.",
     expected="1991",
     compare_mode="contains",
 )
-wiki_python_year.slug = "wiki-python-year"
+_wiki_python_year.slug = "wiki-python-year"
 
-# Easy: exact JSON field extraction
-json_extract_title = answer.task(
+_json_extract_title = answer(
     url="https://httpbin.org/json",
     prompt="Extract the 'title' field from the slideshow object. Return just the title text.",
     expected="Sample Slide Show",
     compare_mode="exact",
 )
-json_extract_title.slug = "json-extract-title"
+_json_extract_title.slug = "json-extract-title"
 
-# Hard: multi-hop — navigate to a linked page, then extract
-wiki_multi_hop = answer.task(
+_wiki_multi_hop = answer(
     url="https://en.wikipedia.org/wiki/Python_(programming_language)",
     prompt=(
         "Find the name of the person who created Python by reading this page, "
@@ -46,10 +46,9 @@ wiki_multi_hop = answer.task(
     expected="1956",
     compare_mode="contains",
 )
-wiki_multi_hop.slug = "wiki-multi-hop"
+_wiki_multi_hop.slug = "wiki-multi-hop"
 
-# Medium: numeric comparison mode
-numeric_extraction = answer.task(
+_numeric_extraction = answer(
     url="https://en.wikipedia.org/wiki/Earth",
     prompt=(
         "What is the approximate equatorial radius of Earth in kilometers? "
@@ -58,14 +57,13 @@ numeric_extraction = answer.task(
     expected="6378",
     compare_mode="numeric",
 )
-numeric_extraction.slug = "numeric-extraction"
+_numeric_extraction.slug = "numeric-extraction"
 
 # =============================================================================
 # FILL-RECORD — form filling with partial-credit scoring
 # =============================================================================
 
-# Medium: fill a simple order form
-httpbin_order_form = fill_record.task(
+_httpbin_order_form = fill_record(
     url="https://httpbin.org/forms/post",
     prompt="Fill out the order form with the customer information provided.",
     fields={
@@ -83,10 +81,9 @@ httpbin_order_form = fill_record.task(
         "input[type='checkbox'][name='topping'][value='bacon']": "checked",
     },
 )
-httpbin_order_form.slug = "httpbin-order-form"
+_httpbin_order_form.slug = "httpbin-order-form"
 
-# Hard: more fields, more detailed instructions
-httpbin_complex_form = fill_record.task(
+_httpbin_complex_form = fill_record(
     url="https://httpbin.org/forms/post",
     prompt=(
         "Fill out the pizza order form completely: "
@@ -113,51 +110,74 @@ httpbin_complex_form = fill_record.task(
         "textarea[name='comments']": "Ring the bell twice.",
     },
 )
-httpbin_complex_form.slug = "httpbin-complex-form"
+_httpbin_complex_form.slug = "httpbin-complex-form"
 
 # =============================================================================
 # WIKI-SPEEDRUN — navigate Wikipedia by clicking links (efficiency scoring)
 # =============================================================================
 
-# Easy: one direct link away
-wiki_easy_hop = wiki_speedrun.task(
+_wiki_easy_hop = wiki_speedrun(
     start_page="Python_(programming_language)",
     target_page="Guido_van_Rossum",
     max_clicks=3,
 )
-wiki_easy_hop.slug = "wiki-easy-hop"
+_wiki_easy_hop.slug = "wiki-easy-hop"
 
-# Medium: requires a chain of related articles
-wiki_medium_hop = wiki_speedrun.task(
+_wiki_medium_hop = wiki_speedrun(
     start_page="Cat",
     target_page="Ancient_Egypt",
     max_clicks=6,
 )
-wiki_medium_hop.slug = "wiki-medium-hop"
+_wiki_medium_hop.slug = "wiki-medium-hop"
 
-# Hard: distant topics, longer chain needed
-wiki_hard_hop = wiki_speedrun.task(
+_wiki_hard_hop = wiki_speedrun(
     start_page="JavaScript",
     target_page="Tim_Berners-Lee",
     max_clicks=8,
 )
-wiki_hard_hop.slug = "wiki-hard-hop"
+_wiki_hard_hop.slug = "wiki-hard-hop"
 
 # =============================================================================
-# ALL_TASKS — master registry for discovery
+# SHEETBENCH-50 — spreadsheet tasks minted from the vendored dataset
 # =============================================================================
 
-ALL_TASKS = {
-    # answer
-    "wiki-python-year": wiki_python_year,
-    "json-extract-title": json_extract_title,
-    "wiki-multi-hop": wiki_multi_hop,
-    "numeric-extraction": numeric_extraction,
-    # fill-record
-    "httpbin-order-form": httpbin_order_form,
-    "httpbin-complex-form": httpbin_complex_form,
-    # wiki-speedrun
-    "wiki-easy-hop": wiki_easy_hop,
-    "wiki-medium-hop": wiki_medium_hop,
-    "wiki-hard-hop": wiki_hard_hop,
-}
+# Formatting rules that were the dataset's per-task system prompt; in v6 they travel
+# with the task prompt.
+_SHEETBENCH_RULES = (
+    'All solutions should be put in the sheet called "ANSWER". In the answer sheet, all dates '
+    "should use the American standard format MM/DD/YYYY with no leading zero. All numbers "
+    "should use the format and decimal place precision given in the input sheets (e.g., with "
+    "or without a thousands separator should depend on the inputs), unless specified otherwise."
+)
+
+
+def _sheetbench_tasks() -> list:
+    rows = json.loads((Path(__file__).parent / "sheetbench.json").read_text())
+    minted = []
+    for row in rows:
+        task = sheet_from_file(
+            prompt=f"{row['prompt']}\n\n{_SHEETBENCH_RULES}",
+            file_url=row["file_url"],
+            sheet_name="Worksheet",
+            expected_cells=row["expected_cells"],
+        )
+        task.slug = f"sheetbench-{row['id'][:8]}"
+        minted.append(task)
+    return minted
+
+
+_sheetbench = _sheetbench_tasks()
+
+
+tasks = [
+    _wiki_python_year,
+    _json_extract_title,
+    _wiki_multi_hop,
+    _numeric_extraction,
+    _httpbin_order_form,
+    _httpbin_complex_form,
+    _wiki_easy_hop,
+    _wiki_medium_hop,
+    _wiki_hard_hop,
+    *_sheetbench,
+]

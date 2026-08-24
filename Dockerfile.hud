@@ -1,37 +1,11 @@
-# Use our HUD base browser image with Playwright and uv pre-installed
-FROM hudevals/hud-browser-base
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-WORKDIR /app
-
-# Copy project files
-COPY pyproject.toml ./
-COPY env.py ./
-COPY context.py ./
-COPY tools/ ./tools/
-COPY providers/ ./providers/
-COPY setup/ ./setup/
-COPY evaluate/ ./evaluate/
-COPY scenarios/ ./scenarios/
-COPY tests/ ./tests/
-
+WORKDIR /hud
+COPY . .
 RUN uv sync
 
-# Create directories for logs and data
-RUN mkdir -p /app/logs /app/data
+ENV HUD_LOG_STREAM="stderr"
+ENV PYTHONUNBUFFERED="1"
 
-ENV DISPLAY_WIDTH=1448
-ENV DISPLAY_HEIGHT=944
-
-# Add the uv .venv to PATH
-ENV PATH=/app/.venv/bin:$PATH
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
-
-# Run: context server in background, then environment
-CMD ["sh", "-c", "\
-    python3 context.py >&2 & \
-    sleep 2 && \
-    exec hud dev env:env --stdio\
-"]
+EXPOSE 8765
+CMD ["uv", "run", "hud", "serve", "env.py", "--host", "0.0.0.0", "--port", "8765"]

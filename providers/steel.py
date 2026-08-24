@@ -1,8 +1,9 @@
 """Steel provider implementation."""
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any
+
 import httpx
 
 from .base import BrowserProvider
@@ -25,13 +26,13 @@ class SteelProvider(BrowserProvider):
     API Documentation: https://docs.steel.dev/api-reference
     """
 
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.api_key = config.get("api_key") if config else os.getenv("STEEL_API_KEY")
         self.base_url = (
             config.get("base_url", "https://api.steel.dev") if config else "https://api.steel.dev"
         )
-        self._session_data: Dict[str, Any] | None = None
+        self._session_data: dict[str, Any] | None = None
 
         if not self.api_key:
             raise ValueError("Steel API key not provided")
@@ -53,7 +54,7 @@ class SteelProvider(BrowserProvider):
         """
         # Build request payload - Steel API is minimal, only include what's needed
         # See: https://docs.steel.dev/overview/sessions-api/overview
-        request_data: Dict[str, Any] = {}
+        request_data: dict[str, Any] = {}
 
         # Timeout (optional, in ms)
         if "timeout" in kwargs:
@@ -158,7 +159,7 @@ class SteelProvider(BrowserProvider):
             self._cdp_url = None
             self._instance_id = None
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get status including Steel-specific info."""
         status = await super().get_status()
 
@@ -184,15 +185,15 @@ class SteelProvider(BrowserProvider):
 
         return status
 
-    def get_debug_url(self) -> Optional[str]:
+    def get_debug_url(self) -> str | None:
         """Get the debug URL for the Steel instance."""
         return self._debug_url if hasattr(self, "_debug_url") else None
 
-    def get_live_view_url(self) -> Optional[str]:
+    def get_live_view_url(self) -> str | None:
         """Get the live view URL for the Steel instance."""
         return self._live_view_url if hasattr(self, "_live_view_url") else None
 
-    async def save_context(self) -> Optional[Dict[str, Any]]:
+    async def save_context(self) -> dict[str, Any] | None:
         """Save the current browser context (cookies, localStorage).
 
         Returns:

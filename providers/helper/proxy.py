@@ -1,13 +1,16 @@
 # Copied simplified global proxy helper
-import os, random, asyncio, logging
-from typing import Optional, Dict, Any
+import logging
+import os
+import random
+from typing import Any
+
 import httpx
 
 logger = logging.getLogger(__name__)
 
 
 # ----------------------- provider helpers ---------------------------
-async def _decodo_proxy() -> Optional[Dict[str, Any]]:
+async def _decodo_proxy() -> dict[str, Any] | None:
     user = os.getenv("DECODO_USERNAME")
     pwd = os.getenv("DECODO_PASSWORD")
     if not user or not pwd:
@@ -49,7 +52,7 @@ async def _decodo_proxy() -> Optional[Dict[str, Any]]:
     return None
 
 
-def _standard_proxy() -> Optional[Dict[str, Any]]:
+def _standard_proxy() -> dict[str, Any] | None:
     server = os.getenv("PROXY_SERVER")
     if not server:
         return None
@@ -63,7 +66,7 @@ def _standard_proxy() -> Optional[Dict[str, Any]]:
 
 
 # ----------------------- public API ---------------------------------
-async def get_proxy_config() -> Optional[Dict[str, Any]]:
+async def get_proxy_config() -> dict[str, Any] | None:
     provider = os.getenv("PROXY_PROVIDER", "auto").lower()
 
     if provider == "none":

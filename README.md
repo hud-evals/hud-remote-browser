@@ -1,58 +1,52 @@
-# Remote Browser Environment
+# hud-remote-browser
 
-A cloud browser environment for web agent evaluation. Agents interact with real websites through Playwright and computer-use tools, powered by a cloud browser provider (AnchorBrowser, Steel, BrowserBase, or HyperBrowser).
+A HUD **v6** environment for **cloud browser** tasks, including **SheetBench-50**. On startup it
+launches a browser at a provider (Anchor, Steel, Browserbase, or Hyperbrowser — auto-detected from
+API keys) and publishes its DevTools endpoint as a **`cdp`** capability any browser agent can
+drive. The environment attaches to the same browser with its own Playwright client, so tasks seed
+state before the prompt and grade from the live page after — never the agent's self-report.
 
-## Setup
+## Layout
 
-```bash
-uv sync
-cp .env.example .env                # Optional
-hud set HUD_API_KEY=your-key-here   # CLI auth, get one at hud.ai/project/api-keys
+```
+env.py            Environment: provider launch + cdp capability; the task templates
+                  (answer, fill-record, wiki-speedrun, sheet-from-file) live here
+sheets.py         Google Sheets: xlsx -> Drive upload, navigation, clipboard grid grading
+sheetbench.json   the 50 SheetBench tasks (hud-evals/SheetBench-50), vendored
+tasks.py          task instances collected into the public `tasks` list (9 general + 50 SheetBench)
+providers/        cloud browser providers (Anchor, Steel, Browserbase, Hyperbrowser)
+Dockerfile.hud    image: uv-managed Python + the v6 control channel
 ```
 
-## Deploy & Run
+## Run
+
+Needs a provider API key (see `.env.example`), and GCP service-account credentials for the
+SheetBench tasks (the sheet is created via the Drive API and shared world-writable):
 
 ```bash
-hud deploy .                                          # deploy the environment (once)
-hud sync tasks <taskset-name>                         # push tasks to a taskset (fast, re-run on every task change)
-hud eval <taskset-name> --remote --full
+cp .env.example .env
+hud eval tasks.py claude --task-ids wiki-python-year        # one general task
+hud eval tasks.py claude --task-ids sheetbench-6e4744c7     # one SheetBench task
 ```
 
-**Iteration loop:** `hud deploy` is the slow step — run it once. After that, edit `tasks.py` and re-run `hud sync tasks` (takes seconds). Only redeploy when `env.py` or the Dockerfile changes.
-
-See [Deploy & Go Remote](https://docs.hud.ai/building/running-at-scale) for deploy flags, secrets, and auto-deploy options.
-
-## Scenarios
-
-| Scenario | Key Args | Description |
-|----------|----------|-------------|
-| `answer` | `url`, `question`, `expected`, `compare` | Navigate to a URL and extract an answer |
-| `fill-record` | `url`, `record`, `selectors` | Fill out a form and verify field values |
-| `wiki-speedrun` | `start_page`, `target_page`, `max_clicks` | Navigate Wikipedia from start to target using only links |
-| `sheet-from-file` | `file_url`, `expected_cells` | Create a Google Sheet from an Excel file |
-
-## Configuration
-
-A cloud browser provider API key is required as an environment variable. Set at least one of:
-
-- `ANCHOR_API_KEY`
-- `STEEL_API_KEY`
-- `BROWSERBASE_API_KEY` (also requires `BROWSERBASE_PROJECT_ID`)
-- `HYPERBROWSER_API_KEY`
-
-The `sheet-from-file` scenario additionally requires GCP credentials via one of:
+Deploy and run hosted:
 
 ```bash
-# Option 1: JSON string
-GCP_CREDENTIALS_JSON='{"type":"service_account",...}'
-
-# Option 2: Base64 encoded
-GCP_CREDENTIALS_BASE64='eyJ0eXBlIjoic2VydmljZV9hY2NvdW50...'
-
-# Option 3: File path
-GCP_CREDENTIALS_FILE='/path/to/service-account.json'
+hud deploy    # build from Dockerfile.hud, publish as `remote-browser`
+hud eval tasks.py claude --runtime hud --full
 ```
 
-## Documentation
+## Tasks
 
-To learn more about tasks, evaluations, and running at scale see the [full docs](https://docs.hud.ai).
+| Slug | Grading |
+|------|---------|
+| `wiki-python-year`, `json-extract-title`, `wiki-multi-hop`, `numeric-extraction` | browse and answer — binary |
+| `httpbin-order-form`, `httpbin-complex-form` | form filling — per-field partial credit |
+| `wiki-easy-hop`, `wiki-medium-hop`, `wiki-hard-hop` | Wikipedia link navigation — efficiency-scored |
+| `sheetbench-<id>` × 50 | spreadsheet task from an xlsx; expected cell values checked on the ANSWER tab — per-cell partial credit |
+
+## Test
+
+```bash
+uv run pytest -q
+```

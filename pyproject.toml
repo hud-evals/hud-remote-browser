@@ -1,38 +1,28 @@
 [project]
 name = "hud-remote-browser"
-version = "0.1.0"
-description = "HUD Remote Browser Controller with MCP tools for cloud browser providers"
-requires-python = ">=3.11,<3.13"
+version = "0.2.0"
+description = "HUD v6 environment: a provider-hosted cloud browser published as a cdp capability"
+requires-python = ">=3.11"
 dependencies = [
- "hud-python>=0.5.38",
- "pyautogui",
- "playwright",
- "httpx",
- "typer",
- "google-api-python-client",
- "google-auth",
- "Pillow",
- "pytest>=9.0.2",
- "pytest-asyncio>=1.3.0",
- "python-dotenv>=1.2.2",
+    "hud>=0.6.15",
+    "playwright",
+    "httpx",
+    "google-api-python-client",
+    "google-auth",
 ]
-# Note: Pillow is required for screenshot rescaling in computer tools
 
-[build-system]
-requires = [ "hatchling",]
-build-backend = "hatchling.build"
+[dependency-groups]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
 
-[project.scripts]
-hud-remote-browser = "hud_controller.__main__:main"
+[tool.uv]
+package = false
 
-[tool.hud]
-image = "hud-remote-browser:dev"
+[tool.ruff]
+target-version = "py311"
+line-length = 100
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
-[tool.hatch.build.targets.wheel]
-packages = [ "src/hud_controller",]
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "C4", "UP"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

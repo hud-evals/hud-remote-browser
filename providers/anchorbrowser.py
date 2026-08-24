@@ -1,8 +1,9 @@
 """AnchorBrowser provider implementation."""
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any
+
 import httpx
 import requests
 
@@ -22,7 +23,7 @@ class AnchorBrowserProvider(BrowserProvider):
     - Popup blocking
     """
 
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.api_key = config.get("api_key") if config else os.getenv("ANCHOR_API_KEY")
         self.base_url = (
@@ -30,7 +31,7 @@ class AnchorBrowserProvider(BrowserProvider):
             if config
             else "https://api.anchorbrowser.io"
         )
-        self._session_data: Dict[str, Any] | None = None  # Initialize session data storage
+        self._session_data: dict[str, Any] | None = None  # Initialize session data storage
 
         if not self.api_key:
             raise ValueError("AnchorBrowser API key not provided")
@@ -53,7 +54,7 @@ class AnchorBrowserProvider(BrowserProvider):
         # Structure: { "session": {...}, "browser": {...} }
         
         # Session configuration
-        session_config: Dict[str, Any] = {
+        session_config: dict[str, Any] = {
             "timeout": {
                 "max_duration": kwargs.get("max_duration", 120),
                 "idle_timeout": kwargs.get("idle_timeout", 30),
@@ -61,7 +62,7 @@ class AnchorBrowserProvider(BrowserProvider):
         }
 
         # Browser configuration with viewport under browser object
-        browser_config: Dict[str, Any] = {
+        browser_config: dict[str, Any] = {
             "adblock": {"active": True},
             "popup_blocker": {"active": True},
             "captcha_solver": {"active": True},
@@ -92,7 +93,7 @@ class AnchorBrowserProvider(BrowserProvider):
         session_config["proxy"] = proxy_config
 
         # Build final request
-        request_data: Dict[str, Any] = {
+        request_data: dict[str, Any] = {
             "session": session_config,
             "browser": browser_config,
         }
@@ -150,7 +151,7 @@ class AnchorBrowserProvider(BrowserProvider):
             self._cdp_url = None
             self._instance_id = None
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get status including AnchorBrowser-specific info."""
         status = await super().get_status()
 
@@ -174,7 +175,7 @@ class AnchorBrowserProvider(BrowserProvider):
 
         return status
 
-    def get_live_view_url(self) -> Optional[str]:
+    def get_live_view_url(self) -> str | None:
         """Get the live view URL for the AnchorBrowser instance."""
         if self._session_data:
             return self._session_data.get("live_view_url")
