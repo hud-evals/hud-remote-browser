@@ -1,8 +1,8 @@
 """Base class for browser providers."""
 
-from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
 import logging
+from abc import ABC, abstractmethod
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -14,15 +14,15 @@ class BrowserProvider(ABC):
     and provides access to its Chrome DevTools Protocol (CDP) endpoint.
     """
 
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize the provider with optional configuration.
 
         Args:
             config: Provider-specific configuration
         """
         self.config = config or {}
-        self._cdp_url: Optional[str] = None
-        self._instance_id: Optional[str] = None
+        self._cdp_url: str | None = None
+        self._instance_id: str | None = None
         self._is_running = False
 
     @abstractmethod
@@ -49,7 +49,7 @@ class BrowserProvider(ABC):
         """
         pass
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get the current status of the browser instance.
 
         Returns:
@@ -66,7 +66,7 @@ class BrowserProvider(ABC):
             "provider": self.__class__.__name__,
         }
 
-    def get_live_view_url(self) -> Optional[str]:
+    def get_live_view_url(self) -> str | None:
         """Get the live view URL for the browser instance.
 
         Returns:
@@ -77,7 +77,7 @@ class BrowserProvider(ABC):
         return None
 
     @property
-    def cdp_url(self) -> Optional[str]:
+    def cdp_url(self) -> str | None:
         """Get the CDP URL of the running browser instance."""
         return self._cdp_url
 

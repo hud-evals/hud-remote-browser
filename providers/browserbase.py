@@ -1,8 +1,9 @@
 """BrowserBase provider implementation."""
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any
+
 import httpx
 
 from .base import BrowserProvider
@@ -23,7 +24,7 @@ class BrowserBaseProvider(BrowserProvider):
     API Documentation: https://docs.browserbase.com/reference/api/create-a-session
     """
 
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.api_key = config.get("api_key") if config else os.getenv("BROWSERBASE_API_KEY")
         self.base_url = (
@@ -34,7 +35,7 @@ class BrowserBaseProvider(BrowserProvider):
         self.project_id = (
             config.get("project_id") if config else os.getenv("BROWSERBASE_PROJECT_ID")
         )
-        self._session_data: Dict[str, Any] | None = None
+        self._session_data: dict[str, Any] | None = None
 
         if not self.api_key:
             raise ValueError("BrowserBase API key not provided")
@@ -58,7 +59,7 @@ class BrowserBaseProvider(BrowserProvider):
         """
         # Build request payload
         # See: https://docs.browserbase.com/fundamentals/create-browser-session
-        request_data: Dict[str, Any] = {"projectId": kwargs.get("projectId", self.project_id)}
+        request_data: dict[str, Any] = {"projectId": kwargs.get("projectId", self.project_id)}
 
         # Start with browserSettings from kwargs if provided, or empty dict
         browser_settings = dict(kwargs.get("browserSettings", {}))
@@ -89,11 +90,14 @@ class BrowserBaseProvider(BrowserProvider):
                 supported_viewports = [
                     (1920, 1080), (1536, 864), (1366, 768), (1280, 720), (1024, 768)
                 ]
-                closest = min(supported_viewports, key=lambda v: abs(v[0] - width) + abs(v[1] - height))
+                closest = min(
+                    supported_viewports, key=lambda v: abs(v[0] - width) + abs(v[1] - height)
+                )
                 browser_settings["viewport"] = {"width": closest[0], "height": closest[1]}
                 if (closest[0], closest[1]) != (width, height):
                     logger.warning(
-                        "BrowserBase: Requested %sx%s not supported without advancedStealth, using closest: %sx%s",
+                        "BrowserBase: Requested %sx%s not supported without "
+                        "advancedStealth, using closest: %sx%s",
                         width, height, closest[0], closest[1]
                     )
                 else:
@@ -207,7 +211,7 @@ class BrowserBaseProvider(BrowserProvider):
             self._cdp_url = None
             self._instance_id = None
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get status including BrowserBase-specific info."""
         status = await super().get_status()
 
@@ -236,7 +240,7 @@ class BrowserBaseProvider(BrowserProvider):
 
         return status
 
-    def get_live_view_url(self) -> Optional[str]:
+    def get_live_view_url(self) -> str | None:
         """Get the fullscreen live view URL for the BrowserBase instance.
         
         This URL can be opened directly in a browser to view the session.
@@ -244,10 +248,10 @@ class BrowserBaseProvider(BrowserProvider):
         """
         return self._debugger_fullscreen_url if hasattr(self, "_debugger_fullscreen_url") else None
 
-    def get_debugger_url(self) -> Optional[str]:
+    def get_debugger_url(self) -> str | None:
         """Get the standard debugger URL (non-fullscreen)."""
         return self._debugger_url if hasattr(self, "_debugger_url") else None
 
-    def get_selenium_remote_url(self) -> Optional[str]:
+    def get_selenium_remote_url(self) -> str | None:
         """Get the Selenium remote URL for the BrowserBase instance."""
         return self._selenium_remote_url if hasattr(self, "_selenium_remote_url") else None

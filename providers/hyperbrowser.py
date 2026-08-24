@@ -1,8 +1,9 @@
 """HyperBrowser provider implementation."""
 
-import os
 import logging
-from typing import Optional, Dict, Any, List
+import os
+from typing import Any
+
 import httpx
 
 from .base import BrowserProvider
@@ -25,7 +26,7 @@ class HyperBrowserProvider(BrowserProvider):
     API Documentation: https://docs.hyperbrowser.ai/reference/api-reference/sessions
     """
 
-    def __init__(self, config: Dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(config)
         self.api_key = config.get("api_key") if config else os.getenv("HYPERBROWSER_API_KEY")
         self.base_url = (
@@ -33,7 +34,7 @@ class HyperBrowserProvider(BrowserProvider):
             if config
             else "https://api.hyperbrowser.ai"
         )
-        self._session_data: Dict[str, Any] | None = None
+        self._session_data: dict[str, Any] | None = None
 
         if not self.api_key:
             raise ValueError("HyperBrowser API key not provided")
@@ -68,7 +69,7 @@ class HyperBrowserProvider(BrowserProvider):
         """
         # Build request payload with defaults
         # See: https://docs.hyperbrowser.ai/reference/api-reference/sessions
-        request_data: Dict[str, Any] = {}
+        request_data: dict[str, Any] = {}
 
         # Only include stealth/proxy if explicitly enabled
         if kwargs.get("useStealth"):
@@ -199,7 +200,7 @@ class HyperBrowserProvider(BrowserProvider):
             self._cdp_url = None
             self._instance_id = None
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get status including HyperBrowser-specific info."""
         status = await super().get_status()
 
@@ -226,17 +227,17 @@ class HyperBrowserProvider(BrowserProvider):
 
         return status
 
-    def get_live_view_url(self) -> Optional[str]:
+    def get_live_view_url(self) -> str | None:
         """Get the live view URL for the HyperBrowser instance."""
         return self._live_url if hasattr(self, "_live_url") else None
 
-    def get_session_url(self) -> Optional[str]:
+    def get_session_url(self) -> str | None:
         """Get the session URL for the HyperBrowser instance."""
         return self._session_url if hasattr(self, "_session_url") else None
 
     async def get_sessions_list(
-        self, page: int = 1, status: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, page: int = 1, status: str | None = None
+    ) -> dict[str, Any]:
         """Get list of sessions.
 
         Args:

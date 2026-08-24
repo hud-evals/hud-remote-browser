@@ -3,4 +3,16 @@ test.ipynb
 .env
 hud.lock.yaml
 
+# Python
 __pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# uv
+uv.lock
+
+# HUD (account-specific build/eval artifacts)
+.hud/
+.hud_eval.toml
